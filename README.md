@@ -5,7 +5,19 @@ Raspberry Pi sd image-file reader and writer
 
  - Easily write an image to an sd card
 
-
+ - works entirely on a Raspberry Pi.  No Windows or Mac needed
+ 
+ SETUP:
+ 
+   Install Raspbery PI OS on an sd drive that is large enought to hold some images.  32GB or 64GB will do.
+   
+   Use a USB SD reader
+   
+   Get some 8GB sd cards.  Use the smallest you can use... so there is less data being copied.
+   
+   Startup you Raspberry Pi on the 64GB disk
+   
+   
 
 TO INSTALL:
 

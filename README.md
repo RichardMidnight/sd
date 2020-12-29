@@ -9,16 +9,17 @@ Raspberry Pi sd image-file reader and writer
 
 TO INSTALL:
 
-COPY TO YOUR DRIVE:
+Download file:
 
      curl -O https://raw.githubusercontent.com/RichardMidnight/sd/main/sd.sh
 
 
-INSTALL TO YOUR /usr/local/bin folder
+Install to your /usr/local/bin folder
 
      sudo bash sd.sh install
 
-Usage:
+
+USAGE:
 
 sd list                         to see available sd cards
 sd read sda newimage.zip        to create an image file from your sd card

@@ -21,5 +21,11 @@ Install to your /usr/local/bin folder
 
 USAGE:
 
-sd list                         to see available sd cards
-sd read sda newimage.zip        to create an image file from your sd card
+List available sd devices and image files:
+
+     sd list 
+     
+
+To copy your SD card to an image file called newimage.zip
+
+     sd read sda newimage.zip

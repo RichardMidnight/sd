@@ -1,2 +1,2 @@
 # sd
-Raspberry Pi sd reader and writer
+Raspberry Pi sd image-file reader and writer

@@ -23,12 +23,12 @@ Raspberry Pi sd image-file reader and writer
    2) Open a terminal
    
    3) Type in the command below to see the name of the sd card.  If it is the only one in, it will be 'sda'.
-   
-         sudo sd list
+  
+       sd list
          
    4)  Type in the command below to start reading the card to an image file
    
-        sd read
+      sd read
         
    5) Follow the prompts to enter the sd device name (probably sda) and the image-file-name you want to use.
    

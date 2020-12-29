@@ -24,7 +24,7 @@ Raspberry Pi sd image-file reader and writer
    
    3) Type in the command below to see the name of the sd card.  If it is the only one in, it will be 'sda'.
   
-       sd list
+     sd list
          
    4)  Type in the command below to start reading the card to an image file
    

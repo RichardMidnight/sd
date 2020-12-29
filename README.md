@@ -7,11 +7,14 @@ Raspberry Pi sd image-file reader and writer
 
 
 
-Install:
+TO INSTALL:
 
-copy sd.sh to drive... recomend Downloads folder
+COPY TO YOUR DRIVE:
+curl -O https://raw.githubusercontent.com/RichardMidnight/sd/main/sd.sh
 
-bash sd.sh install        to install it in your /usr/local/bin folder
+
+INSTALL TO YOUR /usr/local/bin folder
+sudo bash sd.sh install
 
 Usage:
 

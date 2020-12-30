@@ -29,7 +29,11 @@
    
    2) Put your source SD-card in the USB SD reader and insert it in a Pi USB port.
    
-   3) Open a terminal window
+   3) Open a terminal window.
+   
+   4) Change to the 'Downloads' folder (optional).
+   
+       cd Downloads
    
    4) Type in the command below to see the name of the SD-device.  If it is the only one in, it will be 'sda'.
   

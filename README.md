@@ -1,12 +1,12 @@
 # sd - Raspberry Pi image creator
 
- - Easily read an sd card and create an image file
+ - Easily read an sd card and create an image-file
 
- - Easily write an image to an sd card
+ - Easily write an image-file to an sd card
 
  - Works entirely on a Raspberry Pi in terminal.  No Windows or Mac needed. 
  
- - Creates a compressed image file that will resize to fill the new card it is put on.
+ - Creates a compressed image-file that will resize to fill the new card it is put on.
  
  - Supports .img .zip and .xz file formats
  
@@ -33,13 +33,13 @@
   
      sd list
          
-   4)  Type in the command below to start reading the card to an image file
+   4)  Type in the command below to start reading the card to an image-file
    
       sd read
         
    5) Follow the prompts to enter the sd device name (probably sda) and the image-file-name you want to use.
    
-   6) Watch your image file get created!!
+   6) Watch your image-file get created!!
    
  .
    

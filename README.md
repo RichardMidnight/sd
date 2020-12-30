@@ -33,11 +33,11 @@
    
    4) Change to the 'Downloads' folder (optional).
    
-       cd Downloads
+    cd Downloads
    
    4) Type in the command below to see the name of the SD-device.  If it is the only one in, it will be 'sda'.
   
-      sd list
+     sd list
          
    4)  Type in the command below to start reading the SD-card to an image-file
    

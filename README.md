@@ -54,7 +54,7 @@ Move to the Downloads folder (optional)
 
 Download sd.sh:
 
-     curl -O https://raw.githubusercontent.com/RichardMidnight/sd/main/sd.sh
+     wget https://raw.githubusercontent.com/RichardMidnight/sd/main/sd.sh
 
 
 Install to your /usr/local/bin folder

@@ -1,6 +1,6 @@
 # sd - Raspberry Pi image maker
 
- - Easily create an image-file from an sd card.
+ - Easily make (read) an image-file from an sd card.
 
  - Easily write an image-file to an sd card.
 

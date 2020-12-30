@@ -25,11 +25,13 @@ Raspberry Pi sd image-file reader and writer
    
  TO MAKE AN IMAGE FILE...  
    
-   1) Put the SD card you want to make an image of in a USB SD reader and insert it in a PI USB port.  I have been using Sandisk Industrial 8GB cards.
+   1) Boot your Pi to your Master SD card as above.
    
-   2) Open a terminal window
+   2) Put your source SD card in a USB SD reader and insert it in a PI USB port.  I have been using Sandisk Industrial 8GB cards.
    
-   3) Type in the command below to see the name of the sd device.  If it is the only one in, it will be 'sda'.
+   3) Open a terminal window
+   
+   4) Type in the command below to see the name of the sd device.  If it is the only one in, it will be 'sda'.
   
      sd list
          

@@ -24,7 +24,7 @@ Raspberry Pi sd image-file reader and writer
 .   
 
    
- TO MAKE AN IMAGE FILE...  
+ TO MAKE AN IMAGE FILE:  
    
    1) Boot your Pi to your Master SD card as above.
    

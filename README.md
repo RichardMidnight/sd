@@ -11,6 +11,7 @@ Raspberry Pi sd image-file reader and writer
  
  - Supports .img .zip and .xz file formats
  
+ .
  
  USAGE:
  
@@ -57,6 +58,7 @@ Install to your /usr/local/bin folder
 
      sudo bash sd.sh install
 
+.
 
 USAGE:
 

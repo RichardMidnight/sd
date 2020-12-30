@@ -1,4 +1,6 @@
-# sd
+# sd image maker
+.
+
 Raspberry Pi sd image-file reader and writer
 
  - Easily read an sd card and create an image file

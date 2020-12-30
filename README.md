@@ -11,7 +11,7 @@ Raspberry Pi sd image-file reader and writer
  
  - Supports .img .zip and .xz file formats
  
- .
+.
  
  USAGE:
  
@@ -19,6 +19,7 @@ Raspberry Pi sd image-file reader and writer
    
    2) Install sd as described below.
    
+.   
    
  TO MAKE AN IMAGE FILE...  
    
@@ -38,7 +39,7 @@ Raspberry Pi sd image-file reader and writer
    
    6) Watch your image file get created!!
    
-   .
+ .
    
 
 TO INSTALL:

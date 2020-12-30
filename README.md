@@ -1,4 +1,4 @@
-# sd image maker
+# sd - Raspberry Pi image creator
 .
 
 Raspberry Pi sd image-file reader and writer

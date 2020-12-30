@@ -14,39 +14,39 @@
  
 # SETUP
  
-   1) Install Raspberry PI OS on an SD card that is large enought to hold some SD image-files.  32GB or 64GB will do.  This is your Master SD card.
+   1) Install Raspberry PI OS on an SD card that is large enought to hold some SD image-files.  32GB or 64GB will do.  This is your Master SD-card.
    
    2) Install sd as described below.
    
-   3) You will need a USB-sd reader to put your source sd-card in and some sd cards.  I have been using Sandisk Industrial 8GB cards.
+   3) You will need a USB-SD reader for your source SD-card and some SD cards.  Use as small of an SD-card as you can because the entire card has to be read in before it is shrunk and compressed.  I have been using Sandisk Industrial 8GB cards.
    
 .   
 
    
 # TO MAKE AN IMAGE FILE:  
    
-   1) Boot your Pi to your Master SD card as above.
+   1) Boot your Pi to your Master SD-card as above.
    
-   2) Put your source SD card in the USB SD reader and insert it in a Pi USB port.
+   2) Put your source SD-card in the USB SD reader and insert it in a Pi USB port.
    
    3) Open a terminal window
    
-   4) Type in the command below to see the name of the sd device.  If it is the only one in, it will be 'sda'.
+   4) Type in the command below to see the name of the SD-device.  If it is the only one in, it will be 'sda'.
   
       sd list
          
-   4)  Type in the command below to start reading the card to an image-file
+   4)  Type in the command below to start reading the SD-card to an image-file
    
       sd read
         
-   5) Follow the prompts to enter the sd device name (probably 'sda') and the image-file-name you want to use.
+   5) Follow the prompts to enter the SD-device name (probably 'sda') and the image-file-name you want to use.
    
    6) Watch your image-file get created!
    
  .
    
 
-# INSTALLATION:
+# INSTALL
 
 Open a terminal window
 
@@ -64,7 +64,7 @@ Install to your /usr/local/bin folder
 
 .
 
-USAGE:
+# USAGE
 
 List available sd devices and image files:
 

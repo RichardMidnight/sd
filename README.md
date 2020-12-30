@@ -5,7 +5,7 @@ Raspberry Pi sd image-file reader and writer
 
  - Easily write an image to an sd card
 
- - Works entirely on a Raspberry Pi terminal.  No Windows or Mac needed. 
+ - Works entirely on a Raspberry Pi in terminal.  No Windows or Mac needed. 
  
  - Creates a compressed image file that will resize to fill the new card it is put on.
  

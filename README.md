@@ -1,4 +1,4 @@
-# sd - Raspberry Pi image creator
+# sd - Raspberry Pi image maker
 
  - Easily create an image-file from an sd card.
 
@@ -60,7 +60,7 @@ Change to the Downloads folder (optional).
 
 Download 'sd.sh'.
 
-     wget https://raw.githubusercontent.com/RichardMidnight/sd/main/sd.sh
+     wget https://raw.githubusercontent.com/RichardMidnight/sd/main/sd
 
 Install to your /usr/local/bin folder.
 

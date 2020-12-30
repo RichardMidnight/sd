@@ -15,13 +15,14 @@ Raspberry Pi sd image-file reader and writer
  
 .
  
- USAGE:
+ SETUP:
  
    1) Install Raspbery PI OS on an SD card that is large enought to hold some SD images.  32GB or 64GB will do.  This is your Master SD card.
    
    2) Install sd as described below.
    
 .   
+
    
  TO MAKE AN IMAGE FILE...  
    

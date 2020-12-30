@@ -1,7 +1,11 @@
 #!/bin/bash
 
 # by Richard Reed 2018 - 2020
-SD_VER=1.5.5
+
+SD_VER="1.5.6"
+CURRENT_DIR=$(pwd)
+SCRIPTNAME="${0##*/}"
+
 
 # references
 # https://www.raspberrypi.org/documentation/installation/installing-images/linux.md
@@ -9,6 +13,7 @@ SD_VER=1.5.5
 # https://github.com/Drewsif/PiShrink
 
 #echo empty the /root/.local/share/Trash folders to free up room
+
 
 WHITE='\033[1;37m'
 RED='\033[1;31m'
@@ -404,19 +409,17 @@ list_info() {
 
 
 
-install_sd() {
-   # echo "Installing sd v$SD_VER to /usr/local/bin/ ..."
-    
+install_sd() {    
     if [ -f /usr/local/bin/sd ]; then
         echo_red WARNING... sd already in /usr/local/bin. 
-        /usr/local/bin/sd -v
+        echo Installed ver=$(/usr/local/bin/sd -v)
     fi
     
     read -p "Install sd v$SD_VER to /usr/local/bin [y,N] ? " -n 1 -r RESULT
     echo
     
     if [ $RESULT == "y" ]; then
-        sudo cp --backup=numbered sd /usr/local/bin/sd
+        sudo cp --backup=numbered $SCRIPTNAME /usr/local/bin/sd
         sudo chmod +x /usr/local/bin/sd
     else
         echo Not installed.

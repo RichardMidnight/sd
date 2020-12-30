@@ -58,13 +58,13 @@ Change to the Downloads folder (optional).
 
      cd Downloads
 
-Download 'sd.sh'.
+Download 'sd'.
 
      wget https://raw.githubusercontent.com/RichardMidnight/sd/main/sd
 
-Install to your /usr/local/bin folder.
+Install to your /usr/local/bin folder. (note, if wget renamed the file, use the new filename instead of 'sd')
 
-     sudo bash sd.sh install
+     sudo bash sd install
 
 .
 

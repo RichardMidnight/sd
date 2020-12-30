@@ -68,12 +68,18 @@ Install to your /usr/local/bin folder.
 
 .
 
-# USAGE
+# EXAMPLES
 
-List available sd devices and image files
+List available SD-devices and image-files
 
      sd list 
      
-To copy your SD card to an image file called newimage.zip
+To copy your SD-card to an image-file called newimage.zip
 
      sd read sda newimage.zip
+     
+To write an image-file to an SD-card in 'sda'
+
+    sd write newimage.zip sda
+    
+    

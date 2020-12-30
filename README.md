@@ -23,7 +23,7 @@
 .   
 
    
-# TO MAKE AN IMAGE FILE:  
+# TO MAKE AN IMAGE FILE  
    
    1) Boot your Pi to your Master SD-card as above.
    
@@ -54,15 +54,15 @@
 
 Open a terminal window
 
-Change to the Downloads folder (optional)
+Change to the Downloads folder (optional).
 
      cd Downloads
 
-Download sd.sh:
+Download 'sd.sh'.
 
      wget https://raw.githubusercontent.com/RichardMidnight/sd/main/sd.sh
 
-Install to your /usr/local/bin folder
+Install to your /usr/local/bin folder.
 
      sudo bash sd.sh install
 
@@ -70,11 +70,10 @@ Install to your /usr/local/bin folder
 
 # USAGE
 
-List available sd devices and image files:
+List available sd devices and image files
 
      sd list 
      
-
 To copy your SD card to an image file called newimage.zip
 
      sd read sda newimage.zip

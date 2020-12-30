@@ -25,7 +25,7 @@
    
    1) Boot your Pi to your Master SD card as above.
    
-   2) Put your source SD card in a USB SD reader and insert it in a PI USB port.  I have been using Sandisk Industrial 8GB cards.
+   2) Put your source SD card in a USB SD reader and insert it in a Pi USB port.  I have been using Sandisk Industrial 8GB cards.
    
    3) Open a terminal window
    

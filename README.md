@@ -7,6 +7,9 @@ Raspberry Pi sd image-file reader and writer
 
  - Works entirely on a Raspberry Pi terminal.  No Windows or Mac needed. 
  
+ - Creates a compressed image file that will resize to fill the new card it is put on.
+ 
+ - Supports .img .zip and .xz file formats
  
  
  USAGE:
@@ -20,9 +23,9 @@ Raspberry Pi sd image-file reader and writer
    
    1) Put the SD card you want to make an image of in a USB SD reader and insert it in a PI USB port.  I have been using Sandisk Industrial 8GB cards.
    
-   2) Open a terminal
+   2) Open a terminal window
    
-   3) Type in the command below to see the name of the sd card.  If it is the only one in, it will be 'sda'.
+   3) Type in the command below to see the name of the sd device.  If it is the only one in, it will be 'sda'.
   
      sd list
          
@@ -32,7 +35,9 @@ Raspberry Pi sd image-file reader and writer
         
    5) Follow the prompts to enter the sd device name (probably sda) and the image-file-name you want to use.
    
+   6) Watch your image file get created!!
    
+   .
    
 
 TO INSTALL:

@@ -80,7 +80,7 @@ To write an image-file to an SD-card in 'sda'
     sd write newimage.zip sda
     
     
-
+.
 
 # SAMPLE SESSION CREATING AN IMAGE FILE
 

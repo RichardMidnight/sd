@@ -52,20 +52,11 @@
 
 # INSTALL
 
-Open a terminal window
+In a terminal window, type in
 
-Change to the Downloads folder (optional).
-
-     cd Downloads
-
-Download 'sd'.
-
-     wget https://raw.githubusercontent.com/RichardMidnight/sd/main/sd
-
-Install to your /usr/local/bin folder. (note, if wget renamed the file, use the new filename instead of 'sd')
-
-     sudo bash sd install
-
+    wget https://raw.githubusercontent.com/RichardMidnight/sd/main/sd
+    chmod +x sd
+    sudo mv sd /usr/local/bin
 .
 
 # EXAMPLES
@@ -74,7 +65,7 @@ List available SD-devices and image-files
 
      sd list 
      
-To copy your SD-card to an image-file called newimage.zip
+To create an image-file from your sd card in 'sda'
 
      sd read sda newimage.zip
      

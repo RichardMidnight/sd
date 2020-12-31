@@ -1,6 +1,6 @@
 # sd - Raspberry Pi image maker
 
- - Easily make shrunk images of your Raspberry Pi.
+ - Easily make compressed images of your Raspberry Pi.
  
  - Easily restore images to an SD card.
 

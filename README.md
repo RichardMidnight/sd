@@ -67,11 +67,11 @@ In a terminal window, type in
 
 # EXAMPLES
 
-List available SD-devices and image-files
+List available SD-cards and image-files
 
      sd list 
      
-To create an image-file from your sd card in 'sda'
+To create an image-file from your SD-card in 'sda'
 
      sd read sda newimage.zip
      
@@ -86,7 +86,7 @@ To write an image-file to an SD-card in 'sda'
 
 This was all automatic except for the initial command 'sd read sda newimage' and answering 'y'.
 
-It took 14 minutes to create an image from an 8GB SD-card on a Raspberry Pi 4. The image is compressed to 1.5GB
+It took 14 minutes to create an image from an 8GB SD-card on a Raspberry Pi 4. The image compressed to 1.5GB
 
     pi@RaspberryPi-Master:~/Downloads $ sd read sda newimage
     Copyright (c) 2018-2020 Richard Reed

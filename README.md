@@ -14,6 +14,8 @@
  
  - Supports .img .zip and .xz file formats.
  
+ - Supports USB boot.
+ 
 .
  
 # SETUP

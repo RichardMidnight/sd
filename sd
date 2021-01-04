@@ -2,7 +2,7 @@
 
 # by Richard Reed 2018 - 2020
 
-SD_VER="1.5.9"
+SD_VER="1.5.11"
 CURRENT_DIR=$(pwd)
 SCRIPTNAME="${0##*/}"
 
@@ -35,16 +35,23 @@ help() {
     #echo It will run dd, then pishrink, then compress to create a smallimage file of the SD card
     echo
     echo "Usage: "
-    echo "sd list            (to list sd devices and image files)"
-    echo "sd write [file] [device]"
-    echo "sd read [device] [file]"
-    echo "sd install         (to install this script into /usr/local/bin/sd)"
+    echo "$SCRIPTNAME list            (to list sd devices and image files)"
+    echo "$SCRIPTNAME write [file] [device]"
+    echo "$SCRIPTNAME read [device] [file]"
+    echo "$SCRIPTNAME install         (to install this script into /usr/local/bin/sd)"
     echo
     echo "Examples:"
-    echo sd read sda newimage.zip
-    echo sd read sdb newimage.xz
-    echo sd write newimage.zip sda
+    echo $SCRIPTNAME read sda newimage.zip
+    echo $SCRIPTNAME read sdb newimage.xz
+    echo $SCRIPTNAME write newimage.zip sda
     echo
+}
+
+
+# this is probably unused, but good reference
+trim(){
+    STR=$1
+    echo $STR | sed 's/\s\s*/ /g' 
 }
 
 
@@ -71,6 +78,17 @@ sd_size_bytes() {
 
 
 
+folder_size() {
+    FOLDER=$1
+    if [ -d $FOLDER ] ; then
+        sudo du -sh $FOLDER | cut -d'/' -f1
+    else
+        echo 0
+    fi
+}
+
+
+
 image_size() {
     #get parameters
     INFILE=$1
@@ -81,16 +99,17 @@ image_size() {
         ;;
         
         zip)
-            echo $(( $(zipinfo -t $INFILE | cut -d, -f2 | cut -d" " -f2) / 1024 / 1024 )) MB
+            echo $(( $(zipinfo -t $INFILE | cut -d, -f2 | cut -d" " -f2) / 1024 / 1024 ))M
         ;;
         
         xz)
-            xz -l $INFILE | grep -v Strms | cut -c28-40
+            xz -l $INFILE | grep -v Strms | sed 's/\s\s*/ /g' | cut -d' ' -f6,7
         ;;    
         
         gz)
-            pigz -l t$INFILE | grep -v compressed | cut -d' ' -f2
+            echo $(( $(pigz -l $INFILE | grep -v compressed | sed 's/\s\s*/ /g' | cut -d' ' -f2 | sed 's/?/0/g') /1024 / 1024 ))M
         ;;
+        
     esac
 }
 
@@ -110,13 +129,15 @@ image_size_bytes() {
         ;;
         
         xz)
-            xz -l -v $INFILE | grep Uncompressed | cut -d' ' -f8 | cut -d"(" -f2 | sed -e 's/,//g'
+            #xz -l -v $INFILE | grep Uncompressed | cut -d' ' -f8 | cut -d"(" -f2 | sed -e 's/,//g'
+            #xz -l -v $INFILE | grep Uncompressed | sed 's/\s\s*/ /g' | cut -d' ' -f4 | sed -e 's/,//g'
+            xz -l -v $INFILE | grep Uncompressed | sed 's/\s\s*/ /g' | cut -d'(' -f 2 | cut -d ' ' -f1
         ;;  
           
         gz)
-            # note probably needs to be converted to MB
-            #pigz -l $INFILE | grep -v compressed | cut -d' ' -f2
-            echo $(($(pigz -l $INFILE | grep -v compressed | cut -d' ' -f2) / 1024 / 1024 )) MB
+            #pigz -l $INFILE | grep -v compressed | sed 's/\s\s*/ /g' | cut -d' ' -f2
+            pigz -l $INFILE | grep -v compressed | sed 's/\s\s*/ /g' | cut -d' ' -f2 | sed 's/?/0/g'
+
         ;;
     esac
 }    
@@ -135,6 +156,7 @@ freespace_bytes() {
 
 file_base() {
     fullfilename=$1
+    
     filename=$(basename "$fullfilename")
     fname="${filename%.*}"
     echo $fname
@@ -144,6 +166,7 @@ file_base() {
 
 file_ext() {
     fullfilename=$1
+    
     filename=$(basename "$fullfilename")
     ext="${filename##*.}"
     if [ $ext == $(file_base $filename) ]; then
@@ -155,21 +178,40 @@ file_ext() {
 
 
 list_sd_devices() {
-    lsblk -d -n -l -o NAME,VENDOR,MODEL,SIZE /dev/sd?
-    #echo - $(lsblk -d -n -l -o NAME,VENDOR,MODEL,SIZE /dev/sd?)
-    #lsblk -d -n -l -o NAME,VENDOR,MODEL,SIZE /dev/sd? 2> /dev/null 
+    # list blk devices excluding the boot device...
+    lsblk -d -n -l -o NAME,VENDOR,MODEL,SIZE /dev/sd? | grep -v $(boot_disk)
     if ! [ $? = 0 ] ; then
         echo_red ERROR... No SD-cards found...
     fi
- 
 }
 
 
 
+sd_card_name(){
+   lsblk -d -n -l -o NAME,VENDOR,MODEL,SIZE /dev/$1
+}
+
+
+
+boot_disk() {
+    BOOT_PARTITION=$(lsblk -n -l | grep " /boot" | cut -d' ' -f1)
+    if [[ $BOOT_PARTITION =~ "p" ]]; then
+        BOOT_DRIVE=$(echo $BOOT_PARTITION | cut -d'p' -f1)
+    elif [[ $BOOT_PARTITION =~ "sd" ]]; then
+        BOOT_DRIVE=${BOOT_PARTITION:0:3}
+        #$ echo ${name:0:4}
+    else
+      echo_red ERROR getting boot disk  
+    fi    
+    echo $BOOT_DRIVE
+}
+
+
 list_image_files(){
-    ls -1 -s -h -w1 *.img *.zip *.xz  2> /dev/null
+    ls -1 -s -h -w1 *.img *.zip *.xz *.gz 2> /dev/null
     if ! [ $? = 0 ] ; then
-        echo_red ERROR... No Image-files found...
+        #echo_red ERROR... No Image-files found...
+        echo
     fi
 }
 
@@ -178,9 +220,8 @@ elapsed_time() {
     # paramaters are in seconds
     BEG=$1
     END=$2
-    #echo_white  Step 3 took $(($(($(date +%s)-TIME3))/60)) min
+    
     echo $(( $(( $END-$BEG ))/60)) min $(( $(( $END-$BEG ))%60 )) sec 
-    #echo $(( $(( $END-$BEG ))/60/60)) : $(( $(( $END-$BEG ))/60)) : $(( $(( $END-$BEG ))%60 )) 
 }
 
 
@@ -261,47 +302,56 @@ read_sd(){
     esac
     
     
+    echo MODE=read: Create Image File
+
     echo
-    echo_white Read SD card
-
-
+    echo_white Getting SD-card ...
     # read the name of an sd device until it's size is greater than 0
     while [ $(sd_size_bytes $INDEV) -le 0 ]; do
-        echo_red /dev/$INDEV not found.  Available SD devices are:
-        #echo - $(lsblk -d -n -l -o NAME,VENDOR,MODEL,SIZE /dev/sd? )
-        #if ! [ $? = 0 ] ; then
-        #  echo_red ERROR... No SD cards found...
-        #fi
-        echo $(list_sd_devices)
-        echo "Enter SD device name (eg: sda)"
+        if ! [ -z $INFILE ] ; then
+            echo_red /dev/$INDEV not found.  Available SD-card devices are:
+        else
+            echo_red Available SD-card devices are:
+        fi
+        list_sd_devices
+        echo "Enter SD-card device name (eg: sda)"
         read INDEV
     done
     
-    echo_white SD card = \'$(lsblk -d -n -l -o NAME,VENDOR,MODEL,SIZE /dev/$INDEV)\'
-
+    echo SD-card name= \'$(lsblk -d -n -l -o NAME,VENDOR,MODEL,SIZE /dev/$INDEV)\'
+    echo SD-card size= $(sd_size $INDEV)
+    #echo SD-card TrashSize = $(folder_size /home/pi/.local/share/Trash)
+    
 
     # warning if sd is larger than 16GB
-    echo -n Checking for SD card over 16GB ...
+    echo -n "Checking for SD card over 16GB ...          "
     if (( $(sd_size_bytes $INDEV) > 16000000000 )); then
         echo
         echo_red WARNING... $INDEV is $(sd_size $INDEV).   SD card is larger than 16GB, use a smaller SD card if you can. 
+    else
+        echo \'$(sd_size $INDEV)\' [OK]
     fi    
     
     
-    echo -n Checking to see if there is enough space on the drive ...
+    echo -n "Checking for enough space on the drive ...  "
     SPACE_NEEDED=$(( $(sd_size_bytes $INDEV) + (( $(sd_size_bytes $INDEV) / 2)) ))
     #echo sd size = $(sd_size_bytes $INDEV)
-    #echo 1.5=$SPACE_NEEDED
-    
-    if (( $SPACE_NEEDED > $(freespace_bytes) )); then
+   
+    if (( $(sd_size_bytes $INDEV) > $(freespace_bytes) )); then
         echo
-        echo_red ERROR... not enough free space on drive to create an image file.
+        echo_red ERROR... not enough free space on drive to create the image file.
         echo "SD size                      = $(sd_size $INDEV)"
         echo "Free space in current folder = $(freespace)"
         return
     else
-        echo \'$(freespace)\' [OK]
+        if (( $SPACE_NEEDED > $(freespace_bytes) )); then
+            echo
+            echo_red Warning... There may not be enough space on drive to create the image file. $(freespace) available. $(trash_size) in the trash.
+        else
+            echo \'$(freespace)\' [OK]
+        fi
     fi
+    
     
     
     # add .zip if no file extension
@@ -312,7 +362,8 @@ read_sd(){
         OUTFILE_EXT=$(file_ext $OUTFILE)
     fi
 
-
+    echo
+    echo_white Getting Image-file ...
     # get OUTFILE
     while [ -z "$OUTFILE" ] || [ -f "$OUTFILE" ] || [ -f "$OUTFILE_BASE.img" ]; do
         if [ -f "$OUTFILE" ] ; then
@@ -325,10 +376,13 @@ read_sd(){
         
         echo "Enter name of new image file to create (eg: 2020-04-29-buster)"
         read OUTFILE
+        OUTFILE_BASE=$(file_base $OUTFILE)
+        OUTFILE_EXT=$(file_ext $OUTFILE)
     done
 
 
     # add .zip if no file extension
+    
     if [ ! -z "$OUTFILE" ] && [ -z "$OUTFILE_EXT" ]; then
         echo Adding .zip extension...
         OUTFILE=$OUTFILE.zip
@@ -336,11 +390,11 @@ read_sd(){
         OUTFILE_EXT=$(file_ext $OUTFILE)
     fi
 
-    echo_white Image file = \'$OUTFILE\'
+    echo Image file = \'$OUTFILE\'
 
     #echo Compression=$COMPRESSION of 9
 
-    echo -n Checking for supported file extension ...
+    echo -n "Checking for supported file extension ...   "
     case $OUTFILE_EXT in
         img | zip | xz | gz)
             echo \'$OUTFILE_EXT\' [OK]
@@ -355,7 +409,7 @@ read_sd(){
     
     esac
 
-
+    
   
     #echo 1 - sudo dd bs=4M if=/dev/$INDEV of=$OUTFILE.img status=progress conv=fsync 
     #echo 2 - sudo pishrink.sh $OUTFILE.img
@@ -368,7 +422,7 @@ read_sd(){
     if [ $RESULT == "y" ]; then
         TIME1=$(date +%s)
         echo
-        echo_white Step 1 - Reading SD card to $OUTFILE_BASE.img ...
+        echo_white Step 1 - Reading SD card \'$(sd_card_name $INDEV)\' to \'$OUTFILE_BASE.img\' ...
         date
         echo $(sd_size $INDEV ) to read
         sudo dd bs=4M if=/dev/$INDEV of=$OUTFILE_BASE.img status=progress conv=fsync 
@@ -423,9 +477,11 @@ read_sd(){
         echo_white  Step 3 took $(elapsed_time $TIME3 $TIME4)
 
         echo
-        echo_white $(sd_size $INDEV) SD card compressed to $(image_size $OUTFILE) in $(elapsed_time $TIME1 $TIME4)
-        echo_white You can rename $OUTFILE, but it is highly recomended to leave the extension as \'.$(file_ext $OUTFILE)\'.
-        echo_white  You can remove the SD card in /dev/$INDEV now.
+        echo_white Done creating image \'$OUTFILE\'.
+        OUTFILESIZE=$(ls -s -h $OUTFILE | cut -d' ' -f1)
+        echo_white \'$(sd_card_name $INDEV)\' compressed to $OUTFILESIZE in $(elapsed_time $TIME1 $TIME4)
+        #echo_white You can rename $OUTFILE, but it is highly recomended to leave the extension as \'.$(file_ext $OUTFILE)\'.
+        echo_white  You can remove \'$(sd_card_name $INDEV)\' now.
     fi  
 }  
 
@@ -435,10 +491,11 @@ write_sd() {
     #get parameters
     INFILE=$1
     OUTDEV=$2
-    echo_white Write SD card
+    echo "MODE=write: Write Image to SD-card (flash image)"
     
     
     # get INFILE
+    echo
     echo_white Getting Image-file ...
     while [ ! -f "$INFILE" ] ; do
         echo_red \'$INFILE\' does not exist
@@ -448,60 +505,111 @@ write_sd() {
         read INFILE
     done
     
-    echo_white Image-file = \'$INFILE\'
-    echo
+        
+    echo Image-file = \'$INFILE\'
+    #echo
+    
+    
+    echo -n "Inspecting '$INFILE' for an image file ... "
+    case $(file_ext $INFILE) in
+        img)
+            IMG=$INFILE
+        ;;
+        
+        
+        zip)
+            IMG=$(zipinfo -1 $INFILE)  
+        ;;
+        
+        
+        xz)
+            IMG=$(xz -l $INFILE | grep .xz | sed 's/\s\s*/ /g' | cut -d' ' -f10)
+            IMG=$(echo $IMG | sed 's/.xz/.img/g')
+         ;;   
+         
+         
+         gz)
+            IMG=$(pigz -l $INFILE | grep .img | sed 's/\s\s*/ /g'  | cut -d' ' -f4)
+         ;;
+    esac
+    
+    if [ $(file_ext $IMG) == "img" ]; then
+        echo $IMG [OK]
+    else
+        echo_red WARNING ... No image file found in $INFILE
+    fi    
+
+
+    echo Image size = $(image_size $INFILE)
+
     
     # get OUTDEV
+    echo
     echo_white Getting SD-card ...
     while [ -z "$OUTDEV" ] || [ ! -e "/dev/$OUTDEV" ] ; do
-        echo_red /dev/$OUTDEV not found.
-        echo_white Available devices are:
+        if ! [ -z $OUTDEV ] ; then
+            echo_red /dev/$OUTDEV not found.
+        fi    
+        echo_white Available SD-card devices are:
         echo
         #echo - $(lsblk -d -n -l -o NAME,VENDOR,MODEL,TYPE,SIZE /dev/sd? )
         list_sd_devices
         echo
-        echo "Enter SD device name (eg: sda)"
+        echo "Enter SD-card device name (eg: sda)"
         read OUTDEV
     done
 
 
-    # Check if imagefile will fit on device
-    if (( $(image_size_bytes $INFILE) > $(sd_size_bytes $OUTDEV) )); then
-        echo_red ERROR... Image file is larger than sd card.
-        echo "Image size =$(image_size $INFILE)"
-        echo "Device size=$(sd_size $OUTDEV)"
-        #return
-    fi
+    echo SD-card name=\'$(sd_card_name $OUTDEV)\'
+    echo SD-card size=$(sd_size $OUTDEV)
+
     
-    
-    # Check if device is large... maybe the wrong device
-        if (( $(sd_size_bytes $OUTDEV) > 16000000000 )); then
-        echo_red WARNING... SD card \'$(lsblk -d -n -l -o NAME,VENDOR,MODEL,SIZE /dev/$OUTDEV)\' is bigger than 16GB... Is this the right device?
+    # Check if SD-card is large... maybe the wrong device
+    echo -n "Checking if SD-card is larger than 16GB ...     "
+    if (( $(sd_size_bytes $OUTDEV) > 16000000000 )); then
+        echo
+        echo_red WARNING... SD-card \'$(lsblk -d -n -l -o NAME,VENDOR,MODEL,SIZE /dev/$OUTDEV)\' is larger than 16GB... Is this the right device?
         #echo "$OUTDEV size=$(sd_size $OUTDEV)"
         read -p "You must type 'OK' to continue:"  -r RESULT
         if ! [ $RESULT == "OK" ]; then
             echo Exiting...
             exit
         fi
-        echo
+    else
+        echo \'$(sd_size $OUTDEV)\' [OK]
     fi
+    
+    
+    # Check if imagefile will fit on device
+    echo -n "Checking if image-file will fit on SD-card ...     "
+    if (( $(image_size_bytes $INFILE) > $(sd_size_bytes $OUTDEV) )); then
+        echo
+        echo_red ERROR... Image file is larger than SD-card.
+        echo "Image size =$(image_size $INFILE)"
+        echo "Device size=$(sd_size $OUTDEV)"
+        #return
+    else
+        echo [OK]
+    fi
+    
 
-    SD_CARD=$(lsblk -d -n -l -o NAME,VENDOR,MODEL,SIZE /dev/$OUTDEV)
-    echo This will write \'$INFILE\' to \'$SD_CARD\'
+    echo
+    echo_white Write \'$INFILE\' to \'$(sd_card_name $OUTDEV)\'?
     echo_red WARNING... All existing data on \'/dev/$OUTDEV\' - will be erased!
     read  -p "You must type 'YES' to continue:" -r RESULT
     echo
     if [ $RESULT == "YES" ]; then
         
-        echo Unmounting sd device ...
+        echo Unmounting SD-card $OUTDEV ...
         umount /dev/$OUTDEV?
         
         date
         TIME1=$(date +%s)
     
         INFILEEXT=$(file_ext $INFILE)
-                
-        echo_white Writing $(image_size $INFILE) to sd card ...     
+        
+        echo        
+        echo_white Writing $(image_size $INFILE) to SD-card ...     
         
         case $INFILEEXT in
             img)
@@ -519,14 +627,22 @@ write_sd() {
             ;;
 
 
+            gz)
+                pigz -v -d $INFILE | sudo dd of=/dev/$OUTDEV bs=4M conv=fsync status=progress
+            ;;
+
+
             *)
                 echo_red ERROR.  Unsupported file extension.  
             ;;
 
         esac        
-   
-        echo_white Total time $(elapsed_time $TIME1 $(date +%s))
-        echo_white  You can remove the SD card in /dev/$OUTDEV now
+        
+        echo
+        echo_white Done writing \'$INFILE\' to \'$(sd_card_name $OUTDEV)\'
+        echo_white $(image_size $INFILE) written in $(elapsed_time $TIME1 $(date +%s)).
+        #echo_white Total time $(elapsed_time $TIME1 $(date +%s)).
+        echo_white You can remove \'$(sd_card_name $OUTDEV)\' now.
     else
         echo Exiting... did not answer \'YES\'
     fi
@@ -536,15 +652,19 @@ write_sd() {
 
 list_info() {
     echo
-    echo_white  Current directory:
-    echo Freespace in current directory is $(freespace)
+    echo_white  Current System:
+    echo Boot disk = /dev/$(boot_disk)
+    echo FreeSpace = $(freespace)
+    echo TrashSize = $(folder_size /home/pi/.local/share/Trash)
+    echo RootTrash = $(folder_size /root/.local/share/Trash)
+    
+    
     echo
-
-    echo_white SD card devices:
+    echo_white "SD-card devices (excluding boot device):"
     #echo $(list_sd_devices)
     list_sd_devices
-    echo
-    
+
+    echo    
     echo_white Image files:
     #ls -s -h -w1 *.img *.zip *.xz  2> /dev/null
     list_image_files
@@ -552,19 +672,19 @@ list_info() {
 
 
 
-install_sd() {    
-    if [ -f /usr/local/bin/sd ]; then
-        echo_red WARNING... sd already in /usr/local/bin. 
-        echo Installed ver=$(/usr/local/bin/sd -v)
+install() {    
+    if [ -f /usr/local/bin/$SCRIPTNAME ]; then
+        echo_red WARNING... file \'$SCRIPTNAME\' already in /usr/local/bin. 
+        echo Installed ver=$(/usr/local/bin/$SCRIPTNAME -v)
     fi
     
-    read -p "Install sd v$SD_VER to /usr/local/bin/sd [y,N] ? " -n 1 -r RESULT
+    read -p "Install $SCRIPTNAME v$SD_VER to /usr/local/bin/sd [y,N] ? " -n 1 -r RESULT
     echo
     
     if [ $RESULT == "y" ]; then
-        sudo cp --backup=numbered $SCRIPTNAME /usr/local/bin/sd
-        sudo chmod +x /usr/local/bin/sd
-        echo Installed ver=$(/usr/local/bin/sd -v)
+        sudo cp --backup=numbered $SCRIPTNAME /usr/local/bin/piimage
+        sudo chmod +x /usr/local/bin/$SCRIPTNAME
+        echo Installed ver=$(/usr/local/bin/$SCRIPTNAME -v)
     else
         echo Not installed.
     fi
@@ -572,31 +692,10 @@ install_sd() {
 
 
 
-#echo "All OPTS: ${@}"
-
-#verbose=false
-#auto_yes=false
-
-#while getopts ":yv" opt; do
-#  case "${opt}" in
-#    y) auto_yes=true;;
-#    v) verbose=true;;
-#    *) help;;
-#  esac
-#done
-#shift $((OPTIND-1))
-
-
-#echo $verbose
-#echo $auto_yes
-
-
-
-
 # intro
-if [ -z "$1" ] || ! [ $1 == "-v" ]; then
+if  ! [ $1 == "-v" ]; then
     echo "Copyright (c) 2018-2020 Richard Reed"
-    echo sd imager v$SD_VER
+    echo $SCRIPTNAME v$SD_VER
 
     get_tools
 fi
@@ -621,7 +720,7 @@ case $1 in
     
     
     install)
-        install_sd
+        install
     ;;
     
     

@@ -14,7 +14,9 @@
  
  - Supports .img .zip and .xz file formats.
  
- - Supports USB boot.
+ - Supports all USB storage.
+ 
+ - Supports USB boot (tries to hide the boot disk).
  
 .
  

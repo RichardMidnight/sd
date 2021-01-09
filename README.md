@@ -12,7 +12,7 @@
  
  - Creates a compressed image-file that will resize to fill the new card it is put on (thanks to PiShrink).
  
- - Supports .img .zip and .xz file formats.
+ - Supports .img .zip .xz and .gz file formats.
  
  - Supports all USB storage.
  

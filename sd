@@ -2,7 +2,7 @@
 
 # by Richard Reed 2018 - 2020
 
-SD_VER="1.5.11"
+SD_VER="1.5.12"
 CURRENT_DIR=$(pwd)
 SCRIPTNAME="${0##*/}"
 
@@ -82,6 +82,17 @@ folder_size() {
     FOLDER=$1
     if [ -d $FOLDER ] ; then
         sudo du -sh $FOLDER | cut -d'/' -f1
+    else
+        echo 0
+    fi
+}
+
+
+
+file_size_kbytes() {
+    FILE=$1
+    if [ -f $FILE ] ; then
+        ls -s $FILE | cut -d' ' -f1
     else
         echo 0
     fi
@@ -346,7 +357,7 @@ read_sd(){
     else
         if (( $SPACE_NEEDED > $(freespace_bytes) )); then
             echo
-            echo_red Warning... There may not be enough space on drive to create the image file. $(freespace) available. $(trash_size) in the trash.
+            echo_red Warning... There may not be enough space on drive to create the image file. $(freespace) available. $(folder_size /home/pi/.local/share/Trash) in the trash.
         else
             echo \'$(freespace)\' [OK]
         fi
@@ -444,7 +455,8 @@ read_sd(){
         echo
         echo_white Step 3 - Compressing $OUTFILE_BASE.img to $OUTFILE ...
         
-        echo Compression level set to $COMPRESSION out of -9
+        #echo Compression level set to $COMPRESSION out of -9
+        echo $SCRIPTNAME compression level set to $(echo $COMPRESSION | sed 's/-/ /g') of 9
        
         case $(file_ext $OUTFILE) in
             img)
@@ -452,7 +464,25 @@ read_sd(){
             ;;
             
             zip)
-                 zip -db -dd -m $COMPRESSION $OUTFILE_BASE.zip $OUTFILE_BASE.img
+                # try setting dot size with  -ds 100MB      -qdgds 100m
+                #echo $(file_size_kbytes $OUTFILE_BASE.img)
+                #echo $(( $(file_size_kbytes $OUTFILE_BASE.img)  / 1024 / 100 ))
+                #zip -db -dd -ds 100m -m $COMPRESSION $OUTFILE_BASE.zip $OUTFILE_BASE.img
+                #zip -q -dg -ds 100m -m $COMPRESSION $OUTFILE_BASE.zip $OUTFILE_BASE.img
+                
+                ##echo ".........1.........2.........3.........4.........5.........6.........7.........8.........9.........0"
+                ##echo "Estimate $(( $(file_size_kbytes $OUTFILE_BASE.img) / 1024 / 100 )) dots total (100MB ea)."
+                ##zip -dbds 100m -m $COMPRESSION $OUTFILE_BASE.zip $OUTFILE_BASE.img
+                
+                
+                FILESIZE_M=$(( $(file_size_kbytes $OUTFILE_BASE.img) / 1024))
+                DOTSIZE=$(( $FILESIZE_M / 50 ))
+                echo Dot size=$DOTSIZE MB
+                echo -n "                      $(file_base $OUTFILE).img"
+                echo ".........20........40........60........80........100%"
+                zip -dbds $DOTSIZE -m $COMPRESSION $OUTFILE_BASE.zip $OUTFILE_BASE.img
+                #zip -qdgds $DOTSZ -m $COMPRESSION $OUTFILE_BASE.zip $OUTFILE_BASE.img
+                
             ;;
             
             xz)
@@ -477,9 +507,9 @@ read_sd(){
         echo_white  Step 3 took $(elapsed_time $TIME3 $TIME4)
 
         echo
-        echo_white Done creating image \'$OUTFILE\'.
+        echo Done creating image \'$OUTFILE\'.
         OUTFILESIZE=$(ls -s -h $OUTFILE | cut -d' ' -f1)
-        echo_white \'$(sd_card_name $INDEV)\' compressed to $OUTFILESIZE in $(elapsed_time $TIME1 $TIME4)
+        echo \'$(sd_card_name $INDEV)\' compressed to $OUTFILESIZE in $(elapsed_time $TIME1 $TIME4)
         #echo_white You can rename $OUTFILE, but it is highly recomended to leave the extension as \'.$(file_ext $OUTFILE)\'.
         echo_white  You can remove \'$(sd_card_name $INDEV)\' now.
     fi  

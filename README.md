@@ -77,8 +77,8 @@ In a terminal window, type in
     beta ver 
     
     wget https://raw.githubusercontent.com/RichardMidnight/sd/main/sd-beta
-    chmod +x sd-beta
-    ./sd-beta install   
+    bash sd-beta
+    Then you can select 'install' from the menu
 .
 
 # EXAMPLES

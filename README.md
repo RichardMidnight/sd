@@ -67,6 +67,18 @@ In a terminal window, type in
     wget https://raw.githubusercontent.com/RichardMidnight/sd/main/sd
     chmod +x sd
     sudo mv sd /usr/local/bin
+    
+    or
+    
+    wget https://raw.githubusercontent.com/RichardMidnight/sd/main/sd
+    chmod +x sd
+    ./sd install   
+    
+    beta ver 
+    
+    wget https://raw.githubusercontent.com/RichardMidnight/sd/main/sd-beta
+    chmod +x sd-beta
+    ./sd-beta install   
 .
 
 # EXAMPLES

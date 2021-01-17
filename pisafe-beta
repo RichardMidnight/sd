@@ -10,7 +10,7 @@ COPYRIGHT="By Richard Reed 2018 - 2021"
 #echo empty the /root/.local/share/Trash folders to free up room
 
 SCRIPTNAME="${0##*/}"
-SCRIPTVER="0.6.3"
+SCRIPTVER="0.6.4"
 PRODUCTNAME="Pi Safe"
 PRODUCTCOMMENT="Create or flash image files of your Raspberry Pi"
 CURRENT_DIR=$(pwd)
@@ -57,6 +57,33 @@ help() {
     echo
 }
 
+
+
+about(){
+    echo "$PRODUCTNAME was started in 2017 by Richard Reed (github RichardMidnight)"\
+        "when I was working on a Raspberry Pi Homebrdge project and needed"\
+        "to make numerous restore-points.  The image writers available at the"\
+        "time did not seem to be able to create a new image file" 
+    echo
+    echo "I origionally called the product 'sd' to simplify command-line-usage."
+    echo
+    echo "Then in 2021, I added the graphical front-end to make it more usable by others"\
+        "and renamed it 'Pi Safe' with reference to the ventilated cupboards that would let"\
+        "you 'save a pie for later' "
+    echo
+    echo "I hope it is helpful to others."
+    echo
+}
+
+
+ver_to_int() {
+	# this is not currently used... but clever
+	local IFS=.
+	parts=($1)
+	let val=1000000*parts[0]+1000*parts[1]+parts[2]
+	echo $val
+    unset IFS
+}
 
 calc_wt_size() {
   # NOTE: it's tempting to redirect stderr to /dev/null, so supress error 
@@ -426,7 +453,7 @@ Install needed tools?
             fi
         fi
     else
-        echo [OK]
+        echo_if_cli [OK]
     fi
 }    
 
@@ -1006,7 +1033,7 @@ gui_get_outfile(){
   
     done
     
-    echo $OUTFILE
+    echo_if_cli $OUTFILE
 }
 
 
@@ -1377,11 +1404,13 @@ gui_menu(){
                 --ok-button "Select" \
                 --cancel-button "Exit" \
                 --menu "    " $WT_HEIGHT $WT_WIDTH $WT_MENU_HEIGHT \
-                "READ"      "     Read an SD-card to an image-file " \
-                "WRITE"     "     Write/flash an image-file to an SD-card" \
-                "LIST"      "     List info " \
-                "INSTALL"   "     Install into the menu" \
-                "HELP"      "     Help " \
+                "READ"      "   Read an SD-card to an image-file " \
+                "WRITE"     "   Write/flash an image-file to an SD-card" \
+                "LIST"      "   List info " \
+                "INSTALL"   "   Install into the menu" \
+                "HELP"      "   Help " \
+                "ABOUT"     "   About " \
+                "UPDATE"    "   Check for updates " \
                  3>&1 1>&2 2>&3)
         
         #echo $MENU_CHOICE
@@ -1411,6 +1440,16 @@ gui_menu(){
                 whiptail --backtitle "$BACKTITLE"  --title "HELP" --scrolltext --msgbox "$result" $WT_HEIGHT_TALL  $WT_WIDTH
             ;;
             
+            ABOUT)
+                INFO=$(about)
+                 result="$INFO"
+                 whiptail --backtitle "$BACKTITLE"  --title "ABOUT" --scrolltext --msgbox "$result" $WT_HEIGHT_TALL  $WT_WIDTH
+            ;;   
+            
+            UPDATE)
+                update
+            ;;
+            
             *)
                 return
             ;;
@@ -1419,9 +1458,48 @@ gui_menu(){
 }
 
 
+update(){
+    rm $SCRIPTNAME.tmp
+    wget https://raw.githubusercontent.com/RichardMidnight/sd/main/$SCRIPTNAME -O $SCRIPTNAME.tmp
+    EXIT_CODE=$?
+    if [ $EXIT_CODE != 0 ];  then
+        whiptail --backtitle "$BACKTITLE" --title "UPDATE ERROR" --msgbox "Can't connect to server..." $WT_MB_HEIGHT  $WT_MB_WIDTH
+        return $EXIT_CODE
+    fi    
+
+    if [ -f $SCRIPTNAME.tmp ]; then
+        LATEST_VER=$(bash $SCRIPTNAME.tmp -v)
+    else
+        return 1
+    fi
+    
+#echo srv=$(ver_to_int $LATEST_VER). 
+#echo local=$(ver_to_int $SCRIPTVER). 
+    
+    if [ $(ver_to_int $LATEST_VER) -gt $(ver_to_int $SCRIPTVER) ]; then
+        whiptail --backtitle "$BACKTITLE" --title UPDATE --yesno "New Version '$LATEST_VER' available.  Update?" $WT_MB_HEIGHT  $WT_MB_WIDTH
+        EXIT_CODE=$?
+        if [ $EXIT_CODE != 0 ];  then
+            whiptail --backtitle "$BACKTITLE" --title UPDATE --msgbox "Not updated ..." $WT_MB_HEIGHT  $WT_MB_WIDTH
+            return $EXIT_CODE
+        else
+            # do the update
+            echo Not implemented yet.  goto www.github.com/RichardMidnight  
+            echo Press any key to continue
+            read n1
+        fi
+
+        
+    else
+        whiptail --backtitle "$BACKTITLE" --title UPDATE --msgbox "No new version on https://raw.githubusercontent.com/RichardMidnight/sd/main/$SCRIPTNAME" $WT_MB_HEIGHT  $WT_MB_WIDTH
+    fi
+}
+
+
 install() {   
      
     # check to see if script is already installed.
+    
     if [ -f /usr/local/bin/$SCRIPTNAME ]; then
         if [ $INTERFACE = "CLI" ]; then
             echo_red WARNING... file \'$SCRIPTNAME\' ver $(/usr/local/bin/$SCRIPTNAME -v) already in /usr/local/bin. 
@@ -1433,7 +1511,7 @@ install() {
         WARNING_TEXT=
     fi
     
-    MESSAGE_TEXT="Install '$PRODUCTNAME' ver '$SCRIPTVER' into /usr/local/bin \n\nand put in the 'Accessories' menu  "
+    MESSAGE_TEXT="This will install '$PRODUCTNAME' ver '$SCRIPTVER' into '/usr/local/bin' so it can be started from a terminal in any folder.\n\nThen it and put it in the 'Accessories' menu \n\nInstall $PRODUCTNAME? "
     
     
     # Prompt to install

@@ -10,7 +10,7 @@ COPYRIGHT="By Richard Reed 2018 - 2021"
 #echo empty the /root/.local/share/Trash folders to free up room
 
 SCRIPTNAME="${0##*/}"
-SCRIPTVER="0.6.4"
+SCRIPTVER="0.6.6"
 PRODUCTNAME="Pi Safe"
 PRODUCTCOMMENT="Create or flash image files of your Raspberry Pi"
 CURRENT_DIR=$(pwd)
@@ -28,6 +28,11 @@ SD_DEV=
 INFILE=
 OUTFILE=
 BACKTITLE="$PRODUCTNAME ver $SCRIPTVER"
+
+
+
+#note:  sudo fdisk -l | grep '^/dev/[a-z]*[0-9]' 
+
 
 
 help() {
@@ -63,15 +68,15 @@ about(){
     echo "$PRODUCTNAME was started in 2017 by Richard Reed (github RichardMidnight)"\
         "when I was working on a Raspberry Pi Homebrdge project and needed"\
         "to make numerous restore-points.  The image writers available at the"\
-        "time did not seem to be able to create a new image file" 
+        "time were not able to create a new image file" 
     echo
     echo "I origionally called the product 'sd' to simplify command-line-usage."
     echo
     echo "Then in 2021, I added the graphical front-end to make it more usable by others"\
-        "and renamed it 'Pi Safe' with reference to the ventilated cupboards that would let"\
+        "and renamed it 'Pi Safe' with is a reference to the ventilated cupboards that would let"\
         "you 'save a pie for later' "
     echo
-    echo "I hope it is helpful to others."
+    echo "I hope this is helpful to others."
     echo
 }
 
@@ -341,13 +346,19 @@ sd_card_name(){
 
 
 boot_disk() {
-    BOOT_PARTITION=$(lsblk -n -l | grep " /boot" | cut -d' ' -f1)
+    BOOT_PARTITION=$(lsblk -l | grep "/$" | cut -d' ' -f1)
+    
+    if [ -z $BOOT_PARTITION ]; then
+        return 1  # can't find boot partition or boot drive
+    fi
+    
     if [[ $BOOT_PARTITION =~ "p" ]]; then
         BOOT_DRIVE=$(echo $BOOT_PARTITION | cut -d'p' -f1)
     elif [[ $BOOT_PARTITION =~ "sd" ]]; then
         BOOT_DRIVE=${BOOT_PARTITION:0:3}
     else
-      echo ERROR cant find boot drive
+        return 1  # can't find boot disk
+
     fi    
     echo $BOOT_DRIVE
 }
@@ -829,7 +840,7 @@ read_sd(){
 
         echo
         echo_white Step 3 of 3 - Compressing $OUTFILE_BASE.img to $OUTFILE ...
-        
+        date
         #echo Compression level set to $COMPRESSION out of -9
         echo $SCRIPTNAME compression level set to $(echo $COMPRESSION | sed 's/-/ /g') of 9
        
@@ -839,24 +850,12 @@ read_sd(){
             ;;
             
             zip)
-                # try setting dot size with  -ds 100MB      -qdgds 100m
-                #echo $(file_size_kbytes $OUTFILE_BASE.img)
-                #echo $(( $(file_size_kbytes $OUTFILE_BASE.img)  / 1024 / 100 ))
-                #zip -db -dd -ds 100m -m $COMPRESSION $OUTFILE_BASE.zip $OUTFILE_BASE.img
-                #zip -q -dg -ds 100m -m $COMPRESSION $OUTFILE_BASE.zip $OUTFILE_BASE.img
-                
-                ##echo ".........1.........2.........3.........4.........5.........6.........7.........8.........9.........0"
-                ##echo "Estimate $(( $(file_size_kbytes $OUTFILE_BASE.img) / 1024 / 100 )) dots total (100MB ea)."
-                ##zip -dbds 100m -m $COMPRESSION $OUTFILE_BASE.zip $OUTFILE_BASE.img
-                
-                
                 FILESIZE_M=$(( $(file_size_kbytes $OUTFILE_BASE.img) / 1024))
                 DOTSIZE=$(( $FILESIZE_M / 50 ))
                 echo Dot size=$DOTSIZE MB
                 echo -n "                      $(file_base $OUTFILE).img"
                 echo ".........20........40........60........80........100%"
                 zip -dbds $DOTSIZE -m $COMPRESSION $OUTFILE_BASE.zip $OUTFILE_BASE.img
-                #zip -qdgds $DOTSZ -m $COMPRESSION $OUTFILE_BASE.zip $OUTFILE_BASE.img
             ;;
             
             xz)
@@ -888,7 +887,6 @@ read_sd(){
             echo Done creating image \'$OUTFILE\'.
             OUTFILESIZE=$(ls -s -h $OUTFILE | cut -d' ' -f1)
             echo \'$(sd_card_name $INDEV)\' compressed to $OUTFILESIZE in $(elapsed_time $TIME1 $TIME4)
-            #echo_white You can rename $OUTFILE, but it is highly recomended to leave the extension as \'.$(file_ext $OUTFILE)\'.
             echo_white  You can remove \'$(sd_card_name $INDEV)\' now.
         else     
             whiptail  --backtitle "$BACKTITLE" --title " DONE "  --msgbox "\
@@ -978,10 +976,7 @@ cli_get_sddevice(){
 }
 
 
-gui_get_infile(){
-    #FILE=$(gui_dr_file_select)
-    #echo $FILE_SELECTED
-#echo gui_get_infile: calling gui_dr_file_select    
+gui_get_infile(){ 
     if gui_dr_file_select "WRITE : Select an Image-file"  ; then
         INFILE=$FILE_SELECTED
         echo FS=$FILE_SELECTED
@@ -1085,9 +1080,6 @@ gui_get_sddevice(){
     options=($(list_sd_devices | sed 's/ ./ '$FIELD_SEPERATOR' /'))
     unset IFS
     #IFS=$' \t\n'
-
-    #echo ${options[@]}
-    #read n1
 
     IFS=$FIELD_SEPERATOR
     DEVICE_SELECTED=$(whiptail --clear --title "SD cards" --menu "Choose an an SD card" 30 80 10 ""${options[@]}"" 3>&1 1>&2 2>&3)
@@ -1223,11 +1215,8 @@ write_sd() {
         cli_get_infile   # this sets the global variable INFILE
         EXIT_CODE=$?
     else
-#echo write_sd: calling gui_get_infile
         gui_get_infile   # this sets the global variable INFILE
-       # INFILE=$(gui_get_infile)
         EXIT_CODE=$?
-#echo write_sd: exited gui_get_infile
     fi
     if [ $EXIT_CODE != 0 ]; then
         return $EXIT_CODE
@@ -1247,14 +1236,10 @@ write_sd() {
         cli_get_sddevice   # this sets global variable OUTDEV
         EXIT_CODE=$?
     else
-        # GOOD CODE
         OUTDEV=$(gui_get_sddevice)
         EXIT_CODE=$?
-        
-        #test code
-        #OUTDEV=$(gui_get_sddevice_test)
-        #EXIT_CODE=$?
     fi
+    
     if [ $EXIT_CODE != 0 ]; then
         return $EXIT_CODE
     fi    
@@ -1472,9 +1457,7 @@ update(){
     else
         return 1
     fi
-    
-#echo srv=$(ver_to_int $LATEST_VER). 
-#echo local=$(ver_to_int $SCRIPTVER). 
+
     
     if [ $(ver_to_int $LATEST_VER) -gt $(ver_to_int $SCRIPTVER) ]; then
         whiptail --backtitle "$BACKTITLE" --title UPDATE --yesno "New Version '$LATEST_VER' available.  Update?" $WT_MB_HEIGHT  $WT_MB_WIDTH

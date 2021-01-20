@@ -10,7 +10,7 @@ COPYRIGHT="By Richard Reed 2018 - 2021"
 #echo empty the /root/.local/share/Trash folders to free up room
 
 SCRIPTNAME="${0##*/}"
-SCRIPTVER="0.6.9"
+SCRIPTVER="0.6.10"
 PRODUCTNAME="Pi Safe"
 PRODUCTCOMMENT="Backup-to or Restore-from an Image File"
 CURRENT_DIR=$(pwd)
@@ -34,7 +34,7 @@ BACKTITLE="$PRODUCTNAME ver $SCRIPTVER"
 #note:  sudo fdisk -l | grep '^/dev/[a-z]*[0-9]' 
 
 
-help() {
+do_help() {
     echo "$PRODUCTNAME ver $SCRIPTVER."
     echo "$PRODUCTNAME will help you create image files of your Raspberry Pi"
     echo
@@ -64,9 +64,9 @@ help() {
 
 
 
-about(){
+do_about(){
     echo "$PRODUCTNAME was started in 2017 by Richard Reed (github RichardMidnight)"\
-        "when I was working on a Raspberry Pi Homebrdge project and needed"\
+        "when he was working on a Raspberry Pi Homebrdge project and needed"\
         "to make numerous restore-points.  The image writers available at the"\
         "time were not able to create a new image file" 
     echo
@@ -145,6 +145,13 @@ echo_red_if_cli(){
 }
 
 
+echo_white_if_cli(){
+    if [ $INTERFACE = "CLI" ] ; then
+        echo_white $*
+    fi
+}
+
+
 # this is probably unused, but good reference
 trim(){
     local STR=$1
@@ -152,60 +159,73 @@ trim(){
 }
 
 
-sd_size() {
-    #get parameters
+get_sd_size() {
     local INDEV=$1
     
     lsblk /dev/$INDEV -d -n -o size  2> /dev/null
-    if [ $? != 0 ]; then
+    EXIT_CODE=$?
+    if [ $EXIT_CODE != 0 ]; then
         echo 0
+        return $EXIT_CODE
     fi
 }
 
 
-sd_size_bytes() {
-    #get parameters
+get_sd_size_bytes() {
     local INDEV=$1
     
     lsblk /dev/$INDEV -d -n -b -o size  2> /dev/null
-    if [ $? != 0 ]; then
+    if [ $EXIT_CODE != 0 ]; then
         echo 0
+        return $EXIT_CODE
     fi
 }
 
 
-sd_card_name(){
+get_sd_card_name(){
    lsblk -d -n -l -o NAME,VENDOR,MODEL,SIZE /dev/$1  2> /dev/null
+    EXIT_CODE=$?
+    if [ $EXIT_CODE != 0 ]; then
+        echo 0
+        return $EXIT_CODE
+    fi
 }
 
 
-folder_size() {
+get_folder_size() {
     local FOLDER=$1
     
     if [ -d $FOLDER ] ; then
         sudo du -sh $FOLDER | cut -d'/' -f1 | sed 's/\s\s*/ /g'
+        EXIT_CODE=$?
+        if [ $EXIT_CODE != 0 ]; then
+            return $EXIT_CODE
+        fi
     else
         echo 0
     fi
 }
 
 
-file_size_kbytes() {
+get_file_size_kbytes() {
     local FILE=$1
     
     if [ -f $FILE ] ; then
         ls -s $FILE | cut -d' ' -f1
+        EXIT_CODE=$?
+        if [ $EXIT_CODE != 0 ]; then
+            return $EXIT_CODE
+        fi
     else
         echo 0
     fi
 }
 
 
-image_size() {
-    #get parameters
+get_image_size() {
     local INFILE=$1
     
-    case $(file_ext $INFILE) in
+    case $(get_file_ext $INFILE) in
         img)
             ls -s -h $INFILE | cut -d' ' -f1
         ;;
@@ -222,15 +242,19 @@ image_size() {
             echo $(( $(pigz -l $INFILE | grep -v compressed | sed 's/\s\s*/ /g' | cut -d' ' -f2 | sed 's/?/0/g') /1024 / 1024 ))M
         ;;
         
+        *)
+            echo 0
+            return 1
+        ;;
+        
     esac
 }
 
 
-image_size_bytes() {
-    #get parameters
+get_image_size_bytes() {
     local INFILE=$1
     
-    case $(file_ext $INFILE) in
+    case $(get_file_ext $INFILE) in
         img)
             echo $((  $(ls -s $INFILE | cut -d' ' -f1) * 1024 )) 
         ;;
@@ -240,35 +264,46 @@ image_size_bytes() {
         ;;
         
         xz)
-            #xz -l -v $INFILE | grep Uncompressed | cut -d' ' -f8 | cut -d"(" -f2 | sed -e 's/,//g'
-            #xz -l -v $INFILE | grep Uncompressed | sed 's/\s\s*/ /g' | cut -d' ' -f4 | sed -e 's/,//g'
             xz -l -v $INFILE | grep Uncompressed | sed 's/\s\s*/ /g' | cut -d'(' -f 2 | cut -d ' ' -f1
         ;;  
           
         gz)
-            #pigz -l $INFILE | grep -v compressed | sed 's/\s\s*/ /g' | cut -d' ' -f2
             pigz -l $INFILE | grep -v compressed | sed 's/\s\s*/ /g' | cut -d' ' -f2 | sed 's/?/0/g'
-
         ;;
         
         *)
-        echo 0
+            echo 0
+            return 1
         ;;
     esac
 }    
 
 
-freespace() {
-    echo $(df . -h --output=avail | grep -v Avail)
+get_freespace() {
+    local RET
+    RET=$(df . -h --output=avail | grep -v Avail)
+    EXIT_CODE=$?
+    if [ $EXIT_CODE != 0 ]; then
+        return $EXIT_CODE
+    fi
+    
+    echo $RET
 }    
 
 
-freespace_bytes() {
-    echo $(df . -B1 --output=avail | grep -v Avail)
+get_freespace_bytes() {
+    local RET
+    RET=$(df . -B1 --output=avail | grep -v Avail)
+    EXIT_CODE=$?
+    if [ $EXIT_CODE != 0 ]; then
+        return $EXIT_CODE
+    fi
+    
+    echo $RET
 }    
 
 
-file_base() {
+get_file_base() {
     local fullfilename=$1
     
     filename=$(basename "$fullfilename")
@@ -277,12 +312,12 @@ file_base() {
 }
 
 
-file_ext() {
+get_file_ext() {
     local fullfilename=$1
     
     filename=$(basename "$fullfilename")
     ext="${filename##*.}"
-    if [ $ext == $(file_base $filename) ]; then
+    if [ $ext == $(get_file_base $filename) ]; then
       ext=""
     fi
     echo $ext
@@ -291,21 +326,20 @@ file_ext() {
 
 list_sd_devices() {
     local DEVICES=
-    DEVICES=$(lsblk -d -n -o NAME,VENDOR,MODEL,SIZE /dev/sd?  2> /dev/null | grep -v $(boot_disk) )   
+    DEVICES=$(lsblk -d -n -o NAME,VENDOR,MODEL,SIZE /dev/sd?  2> /dev/null | grep -v $(get_boot_disk) )   
     EXIT_CODE=$?
-    
-#echo diag: list_sd_devices. exit code= $EXIT_CODE.    
-
     if [ $EXIT_CODE != 0 ]; then
         return $EXIT_CODE
     fi
     
     echo "${DEVICES[@]}"
-    #return 0
   }
   
 
-boot_disk() {
+get_boot_disk() {
+    local BOOT_PARTITION
+    local BOOT_DRIVE
+    
     BOOT_PARTITION=$(lsblk -l | grep "/$" | cut -d' ' -f1 2> /dev/null) 
     
     if [ -z $BOOT_PARTITION ]; then
@@ -332,7 +366,7 @@ list_image_files(){
 }
 
 
-elapsed_time() {
+get_elapsed_time() {
     # paramaters are in seconds
     BEG=$1
     END=$2
@@ -538,33 +572,35 @@ unset IFS
 
 
 check_freespace(){
-    SPACE_NEEDED=$(( $(sd_size_bytes $INDEV) + (( $(sd_size_bytes $INDEV) / 2)) ))
+    SPACE_NEEDED=$(( $(get_sd_size_bytes $INDEV) + (( $(get_sd_size_bytes $INDEV) / 2)) ))
      
     echo_if_cli -n "Checking for enough free space on the drive ...  "
        
-    if (( $(sd_size_bytes $INDEV) > $(freespace_bytes) )); then
+    if (( $(get_sd_size_bytes $INDEV) > $(get_freespace_bytes) )); then
          if [ $INTERFACE = "CLI" ] ; then
             echo
             echo_red ERROR... not enough free space on drive to create the image file.
-            echo "SD size                      = $(sd_size $INDEV)"
-            echo "Free space in current folder = $(freespace)"
+            echo "SD size                      = $(get_sd_size $INDEV)"
+            echo "Free space in current folder = $(get_freespace)"
             return 1
         else
-            whiptail  --backtitle "$BACKTITLE"  --title ERROR --ok-button "Cancel" --msgbox "Not enough free space on '$PWD' '$(freespace) available' to create the image file from '$(sd_card_name $INDEV)'." $WT_MB_HEIGHT $WT_MB_WIDTH
+            whiptail  --backtitle "$BACKTITLE"  --title ERROR --ok-button "Cancel" --msgbox "Not enough free space on '$PWD'.  \n'$(get_freespace) available' to create the image file from '$(get_sd_card_name $INDEV)'." $WT_MB_HEIGHT $WT_MB_WIDTH
             return 1
         fi
     fi
     
-    if (( $SPACE_NEEDED > $(freespace_bytes) )); then
-        if [ $INTERFACE = "CLI" ] ; then
-            echo
-            echo_red Warning... There may not be enough space on drive to create the image file. $(freespace) available. $(folder_size /home/pi/.local/share/Trash) in the trash.
-        else
-            whiptail  --backtitle "$BACKTITLE" --title WARNING --msgbox "There may not be enough space on drive to create the image file. '$(freespace) available'. $(folder_size /home/pi/.local/share/Trash) in the trash." $WT_MB_HEIGHT $WT_MB_WIDTH
-        fi
+    if (( $SPACE_NEEDED > $(get_freespace_bytes) )); then
+        echo_or_msgbox  WARNING "There may not be enough space on drive '$PWD' to create the image."
+        
+        #if [ $INTERFACE = "CLI" ] ; then
+        #    echo
+        #    echo_red Warning... There may not be enough space on drive to create the image file. $(get_freespace) available. $(get_folder_size /home/pi/.local/share/Trash) in the trash.
+        #else
+        #    whiptail  --backtitle "$BACKTITLE" --title WARNING --msgbox "There may not be enough space on drive to create the image file. '$(get_freespace) available'. $(get_folder_size /home/pi/.local/share/Trash) in the trash." $WT_MB_HEIGHT $WT_MB_WIDTH
+        #fi
     else
         if [ $INTERFACE = "CLI" ] ; then
-            echo \'$(freespace)\' [OK]
+            echo \'$(get_freespace)\' [OK]
         fi
     fi
 }
@@ -573,7 +609,7 @@ check_freespace(){
 check_for_supported_file_extention(){
     #returns 0 if good, 1 if bad
        
-    OUTFILE_EXT=$(file_ext $OUTFILE)
+    OUTFILE_EXT=$(get_file_ext $OUTFILE)
 
     case $OUTFILE_EXT in
         img | zip | xz | gz |"" )
@@ -588,12 +624,10 @@ check_for_supported_file_extention(){
 
 
 do_backup_get_input(){
-    #get parameters
-    INDEV=$1  #use global vars
-#echo INDE1=$INDEV    
+    INDEV=$1  #use global vars  
     OUTFILE=$2   #use global vars
-    local OUTFILE_BASE=$(file_base $OUTFILE)
-    local OUTFILE_EXT=$(file_ext $OUTFILE)
+    local OUTFILE_BASE=$(get_file_base $OUTFILE)
+    local OUTFILE_EXT=$(get_file_ext $OUTFILE)
     local COMPRESSION=$3
     
     
@@ -619,19 +653,15 @@ do_backup_get_input(){
     #GET INDEV
     if [ $INTERFACE = "CLI" ] ; then
         cli_get_sddevice  $INDEV  # this sets global variable INDEV and OUTDEV
-        #gui_get_sddevice  # this sets global variable INDEV and OUTDEV
         EXIT_CODE=$?
         #echo SD-card name= \'$(lsblk -d -n -l -o NAME,VENDOR,MODEL,SIZE /dev/$INDEV 2> /dev/null)\'
-        #echo SD-card size= $(sd_size $INDEV)
-        #echo SD-card TrashSize = $(folder_size /home/pi/.local/share/Trash)
+        #echo SD-card size= $(get_sd_size $INDEV)
+        #echo SD-card TrashSize = $(get_folder_size /home/pi/.local/share/Trash)
     else  # GUI
-        #INDEV=$(gui_get_sddevice)
-        gui_get_sddevice
+        gui_get_sddevice    # this sets global variable INDEV and OUTDEV
         EXIT_CODE=$?
     fi
-    
-    
-    if [ $EXIT_CODE != 0 ]; then
+    if [ $EXIT_CODE != 0 ] ; then 
         #echo_or_msgbox "ERROR $EXIT_CODE: "  "no SD cards found"
         return $EXIT_CODE
     fi    
@@ -640,7 +670,7 @@ do_backup_get_input(){
     check_in_device_size $INDEV
     EXIT_CODE=$?
     if [ $EXIT_CODE != 0 ] ; then
-        echo_or_msgbox "ERROR"  "SD card size 0"
+        #echo_or_msgbox "ERROR"  "SD card size 0"
         return $EXIT_CODE
     fi 
     
@@ -648,7 +678,7 @@ do_backup_get_input(){
     check_freespace
     EXIT_CODE=$?
     if [ $EXIT_CODE != 0 ] ; then
-        echo_or_msgbox "ERROR"  "Not enought free space on drive"
+        #echo_or_msgbox "ERROR"  "Not enought free space on drive"
         return $EXIT_CODE
     fi 
     
@@ -658,18 +688,18 @@ do_backup_get_input(){
     #get outfile
     get_outfile $2
     EXIT_CODE=$?
-
     if [ $EXIT_CODE != 0 ]; then
-        echo_or_msgbox "ERROR"  "No OUTFILE "
+        #echo_or_msgbox "ERROR"  "No OUTFILE "
         return $EXIT_CODE
     fi
     
     
-    if [ ! -z "$OUTFILE" ] && [ -z "$OUTFILE_EXT" ]; then
+   # if [ ! -z "$OUTFILE" ] && [ -z "$OUTFILE_EXT" ]; then
+   if [ -z "$OUTFILE_EXT" ]; then
         echo_if_cli Adding .zip extension...
         OUTFILE=$OUTFILE.zip
-        OUTFILE_BASE=$(file_base $OUTFILE)
-        OUTFILE_EXT=$(file_ext $OUTFILE)
+        OUTFILE_BASE=$(get_file_base $OUTFILE)
+        OUTFILE_EXT=$(get_file_ext $OUTFILE)
     fi
 
  
@@ -681,8 +711,8 @@ do_backup_get_input(){
         read -p "Create image-file "\'$OUTFILE\'" from "\'/dev/$INDEV\'" [y,N] ?"  -n 1 -r RESULT
         echo
     else
-        whiptail  --backtitle "$BACKTITLE" --title "READ : Create Image-file" --defaultno --yesno "Create image-file '$OUTFILE' from '/dev/$INDEV'  \n\nA good 8GB card on a Pi4 takes about 9 minutes."   $WT_HEIGHT $WT_WIDTH
-        EXIT_CODE=$?
+        whiptail  --backtitle "$BACKTITLE" --title "BACKUP : Create Image-file" --defaultno --yesno "Create image-file '$OUTFILE' from '/dev/$INDEV'  \n\nA good 8GB card on a Pi4 takes about 9 minutes."   $WT_HEIGHT $WT_WIDTH
+        EXIT_CODE=$?       
         if [ $EXIT_CODE != 0 ] ; then
             return $EXIT_CODE
         fi
@@ -692,28 +722,35 @@ do_backup_get_input(){
 
     if [ $RESULT == "y" ]; then
         if [ $INTERFACE = "GUI" ] ; then
-            whiptail  --backtitle "$BACKTITLE" --yes-button OK --no-button Cancel --yesno "Switching to terminal screen to watch the work ... "   $WT_MB_HEIGHT $WT_MB_WIDTH
-            if [ $? != 0 ]; then return ;fi
+            whiptail  --backtitle "$BACKTITLE" --title BACKUP --yes-button OK --no-button Cancel --yesno "Switching to terminal screen to watch the work ... "   $WT_MB_HEIGHT $WT_MB_WIDTH
+            EXIT_CODE=$?
+            if [ $EXIT_CODE != 0 ] ; then
+                return $EXIT_CODE
+            fi
         fi
     
     
         # this next line actually does the work!!
         do_backup $INDEV $OUTFILE
-      
+        EXIT_CODE=$?
+        if [ $EXIT_CODE != 0 ] ; then
+            return $EXIT_CODE
+        fi
+        
       
         if [ $INTERFACE = "CLI" ] ; then
             echo
             echo Done creating image \'$OUTFILE\'.
             OUTFILESIZE=$(ls -s -h $OUTFILE | cut -d' ' -f1)
-            echo \'$(sd_card_name $INDEV)\' compressed to $OUTFILESIZE in $(elapsed_time $TIME1 $TIME4)
-            echo_white  You can remove \'$(sd_card_name $INDEV)\' now.
+            echo \'$(get_sd_card_name $INDEV)\' compressed to $OUTFILESIZE in $(get_elapsed_time $TIME1 $TIME4)
+            echo_white  You can remove \'$(get_sd_card_name $INDEV)\' now.
         else     
             whiptail  --backtitle "$BACKTITLE" --title " DONE "  --msgbox "\
     Done creating imagefile '$OUTFILE'
 
-    '$(sd_card_name $INDEV)' compressed to $OUTFILESIZE in $(elapsed_time $TIME1 $TIME4) 
+    '$(get_sd_card_name $INDEV)' compressed to $OUTFILESIZE in $(get_elapsed_time $TIME1 $TIME4) 
 
-    You can remove '$(sd_card_name $INDEV)' now. \
+    You can remove '$(get_sd_card_name $INDEV)' now. \
     " $WT_MB_HEIGHT $WT_WIDTH
         fi
       
@@ -738,25 +775,27 @@ do_backup(){
     
     if [ -z "$INDEV" ] || [ ! -e "/dev/$INDEV" ]  ; then
         echo ERROR in INDEV
+        read n1
         return 1
     fi 
     
     if [ -z "$OUTFILE" ] || [ -f "$OUTFILE" ]  ; then
         echo ERROR in OUTFILE
+        read n1
         return 2
     fi 
 
 
     TIME1=$(date +%s)
-    echo_white Step 1 of 3 - Reading SD card \'$(sd_card_name $INDEV)\' to \'$OUTFILE_BASE.img\' ...
+    echo_white Step 1 of 3 - Reading SD card \'$(get_sd_card_name $INDEV)\' to \'$OUTFILE_BASE.img\' ...
     date
-    echo $(sd_size $INDEV ) to read
+    echo $(get_sd_size $INDEV ) to read
     sudo dd bs=4M if=/dev/$INDEV of=$OUTFILE_BASE.img status=progress conv=fsync 
     sleep 5s
     echo Done reading SD card
     echo_white $(ls -s -h $OUTFILE_BASE.img)
     TIME2=$(date +%s)  
-    echo_white Step 1 took $(elapsed_time $TIME1 $TIME2)
+    echo_white Step 1 took $(get_elapsed_time $TIME1 $TIME2)
     echo
    
     echo_white Step 2 of 3 - Shrinking filesystem with PiShrink ...
@@ -764,7 +803,7 @@ do_backup(){
     echo Done shrinking filesystem
     echo_white $(ls -s -h $OUTFILE_BASE.img)
     TIME3=$(date +%s)
-    echo_white Step 2 took $(elapsed_time $TIME2 $TIME3)
+    echo_white Step 2 took $(get_elapsed_time $TIME2 $TIME3)
 
     echo
     echo_white Step 3 of 3 - Compressing $OUTFILE_BASE.img to $OUTFILE ...
@@ -772,16 +811,16 @@ do_backup(){
     #echo Compression level set to $COMPRESSION out of -9
     echo $SCRIPTNAME compression level set to $(echo $COMPRESSION | sed 's/-/ /g') of 9
    
-    case $(file_ext $OUTFILE) in
+    case $(get_file_ext $OUTFILE) in
         img)
             echo not compressing .img file ...
         ;;
         
         zip)
-            local FILESIZE_M=$(( $(file_size_kbytes $OUTFILE_BASE.img) / 1024))
+            local FILESIZE_M=$(( $(get_file_size_kbytes $OUTFILE_BASE.img) / 1024))
             local DOTSIZE=$(( $FILESIZE_M / 50 ))
             echo Dot size=$DOTSIZE MB
-            echo -n "                      $(file_base $OUTFILE).img"
+            echo -n "                      $(get_file_base $OUTFILE).img"
             echo ".........20........40........60........80........100%"
             zip -dbds $DOTSIZE -m $COMPRESSION $OUTFILE_BASE.zip $OUTFILE_BASE.img
         ;;
@@ -798,18 +837,18 @@ do_backup(){
         
         
         *)
-            echo_red ERROR... unsupported file extension \'$(file_ext $OUTFILE)\'.
+            echo_red ERROR... unsupported file extension \'$(get_file_ext $OUTFILE)\'.
         ;;
     esac
         
     echo Done compressing $OUTFILE_BASE.img to $OUTFILE
     echo_white $(ls -s -h $OUTFILE)
     TIME4=$(date +%s)
-    echo_white  Step 3 took $(elapsed_time $TIME3 $TIME4)
+    echo_white  Step 3 took $(get_elapsed_time $TIME3 $TIME4)
     
     if [ $INTERFACE = "GUI" ]; then
         echo
-        echo_white Backup done. Total time $(elapsed_time $TIME1 $TIME4). Press any key to continue...
+        echo_white Backup done. Total time $(get_elapsed_time $TIME1 $TIME4). Press any key to continue...
         read -n1
     fi
 }
@@ -841,8 +880,8 @@ local SDDEV=$1
         OUTDEV=$SDDEV
         INDEV=$SDDEV
         echo $SDDEV
-        echo SD-card name=\'$(sd_card_name $SDDEV)\'
-        echo SD-card size=$(sd_size $SDDEV)
+        echo SD-card name=\'$(get_sd_card_name $SDDEV)\'
+        echo SD-card size=$(get_sd_size $SDDEV)
 }
 
 
@@ -866,7 +905,7 @@ cli_get_infile(){
 
 gui_get_infile(){ 
     if gui_dr_file_select "WRITE : Select an Image-file" "" "" "no" ; then
-        INFILE=$FILE_SELECTED
+    INFILE=$FILE_SELECTED
 #echo FS=$FILE_SELECTED
     else
         echo "Cancelled!"
@@ -877,10 +916,10 @@ gui_get_infile(){
 
 get_outfile(){
    # both GUI and CLI
-    echo_if_cli Getting Image-file ...  
+    echo_white_if_cli Getting Image-file ...  
     
-    OUTFILE_BASE=$(file_base $OUTFILE)
-    OUTFILE_EXT=$(file_ext $OUTFILE)
+    OUTFILE_BASE=$(get_file_base $OUTFILE)
+    OUTFILE_EXT=$(get_file_ext $OUTFILE)
     check_for_supported_file_extention
     EXT_OK=$?
     OUTFILEDEFAULT=$(date +%Y-%m-%d-newimage)
@@ -890,17 +929,14 @@ get_outfile(){
         #tests and messages
         if [ -f "$OUTFILE" ] ; then
             echo_or_msgbox ERROR "File '$OUTFILE' exists"
-            #whiptail  --backtitle "$BACKTITLE"  --title ERROR  --msgbox "File '$OUTFILE' exists" $WT_MB_HEIGHT $WT_MB_WIDTH 
         fi
         
         if [ -f "$OUTFILE_BASE.img" ] ; then
             echo_or_msgbox ERROR "File '$OUTFILE_BASE.img' exists"
-            #whiptail  --backtitle "$BACKTITLE" --title ERROR --msgbox "File '$OUTFILE_BASE.img' exists"  $WT_MB_HEIGHT $WT_MB_WIDTH 
         fi
         
         if [ "$EXT_OK" = "1" ] ; then
-            echo_or_msgbox  ERROR "Unsupported extention '$(file_ext $OUTFILE)' "
-           # whiptail  --backtitle "$BACKTITLE" --title ERROR --msgbox "Unsupported extention '$(file_ext $OUTFILE)' "  $WT_MB_HEIGHT $WT_MB_WIDTH 
+            echo_or_msgbox  ERROR "Unsupported extention '$(get_file_ext $OUTFILE)' "
         fi
         
         
@@ -910,7 +946,7 @@ get_outfile(){
             read NEWFILE
             EXIT_CODE=$?
         else
-            NEWFILE=$(whiptail  --backtitle "$BACKTITLE" --title "READ : Get Filename"  --inputbox "Enter the filename (eg 2020-12-15-Buster32) \n\nIf you don't include an extension '.zip' will be added." $WT_HEIGHT $WT_WIDTH "$OUTFILEDEFAULT" 3>&1 1>&2 2>&3)
+            NEWFILE=$(whiptail  --backtitle "$BACKTITLE" --title "BACKUP : Get Filename"  --inputbox "Enter the filename (eg 2020-12-15-Buster32) \n\nIf you don't include an extension '.zip' will be added." $WT_HEIGHT $WT_WIDTH "$OUTFILEDEFAULT" 3>&1 1>&2 2>&3)
             EXIT_CODE=$?
         fi
         
@@ -924,18 +960,16 @@ get_outfile(){
         OUTFILEDEFAULT=$NEWFILE
         OUTFILE=$NEWFILE
         OUTFILE_BASE=$(file_base $OUTFILE)
-        if [ -z $(file_ext $OUTFILE) ] ; then 
+        if [ -z $(get_file_ext $OUTFILE) ] ; then 
              echo_if_cli "Adding '.zip' "
              OUTFILE=$OUTFILE.zip
         fi
-        #OUTFILE_EXT=$(file_ext $OUTFILE)
+        #OUTFILE_EXT=$(get_file_ext $OUTFILE)
         #EXT_OK=$(check_for_supported_file_extention && echo $?)
         check_for_supported_file_extention
         EXT_OK=$?
         
       done      
-        
-      #return 0  
 }
 
 
@@ -950,16 +984,20 @@ gui_get_sddevice(){
     unset IFS
    # if [ -z  "$options" ]; then
     if [ -z  "${options[@]}" ]; then
-#echo ERROR 6  gui_get_sddevice
         echo_or_msgbox "ERROR" "No SD cards found." 
         return 1
     fi
 
     IFS=$FIELD_SEPERATOR
     DEVICE_SELECTED=$(whiptail --clear --title "SD cards" --menu "Choose an an SD card" 30 80 10 ""${options[@]}"" 3>&1 1>&2 2>&3)
+    EXIT_CODE=$?
     unset IFS   
      
-    echo $DEVICE_SELECTED
+    if [ $EXIT_CODE != 0 ]; then
+        return $EXIT_CODE
+    fi
+     
+    #echo $DEVICE_SELECTED
     OUTDEV=$DEVICE_SELECTED
     INDEV=$DEVICE_SELECTED
     return 0
@@ -967,35 +1005,26 @@ gui_get_sddevice(){
 
 
 gui_get_sddevice_X(){
-#echo _cli-get-$INDEV
-#local SDDEV=$1
-#echo cli_get_sddevic-$SDDEV
     FIELD_SEPERATOR="|"
     IFS=$'\n'
-    #echo
-    #echo_white Getting SD-card ...
-   # while [ -z "$SDDEV" ] || [ ! -e "/dev/$SDDEV" ] ; do
-        #if ! [ -z "$SDDEV" ] ; then
-        #    echo_red /dev/$SDDEV not found.
-        #fi    
- #       echo_white Available SD-card devices are:
- #       echo
-        list_sd_devices
-        EXIT_CODE=$?
-        if [ $EXIT_CODE != 0 ]; then
-            echo ERROR in cli_get_sddevice:  No SD-cards found.
-            return $EXIT_CODE
-        fi
-        echo
-        echo "Enter SD-card device name (eg: sda)"
-        read SDDEV
-    #done
-        # currently sets both INDEV and OUTDEV
-        OUTDEV=$SDDEV
-        INDEV=$SDDEV
-        echo $SDDEV
-        echo SD-card name=\'$(sd_card_name $SDDEV)\'
-        echo SD-card size=$(sd_size $SDDEV)
+    
+    list_sd_devices
+    EXIT_CODE=$?
+    if [ $EXIT_CODE != 0 ]; then
+        echo ERROR in cli_get_sddevice:  No SD-cards found.
+        return $EXIT_CODE
+    fi
+    
+    echo
+    echo "Enter SD-card device name (eg: sda)"
+    read SDDEV
+
+    # currently sets both INDEV and OUTDEV
+    OUTDEV=$SDDEV
+    INDEV=$SDDEV
+    echo $SDDEV
+    echo SD-card name=\'$(get_sd_card_name $SDDEV)\'
+    echo SD-card size=$(get_sd_size $SDDEV)
 }
 
 
@@ -1008,7 +1037,7 @@ check_for_img_file(){
     
     echo_if_cli -n "Inspecting '$INFILE' for an image file ... "
  
-    case $(file_ext $INFILE) in
+    case $(get_file_ext $INFILE) in
         img)
             IMG=$INFILE
         ;;
@@ -1028,19 +1057,13 @@ check_for_img_file(){
     esac
     
     
-    if [ ! -z $(file_ext $IMG) ] && [ $(file_ext $IMG) == "img" ]; then
+    if [ ! -z $(get_file_ext $IMG) ] && [ $(get_file_ext $IMG) == "img" ]; then
         echo_if_cli $IMG [OK]
         return 0
        # fi
     else
         echo_or_msgbox ERROR "No image found in '$INFILE'"
         return 1
-        
-        #if [ $INTERFACE = "CLI" ] ; then
-        #    echo_red WARNING ... No image file found in $INFILE
-        #else
-        #    whiptail  --backtitle "$BACKTITLE" --title WARNING --msgbox "No image found in $INFILE" $WT_MB_HEIGHT $WT_MB_WIDTH 
-        #fi
     fi    
 }
 
@@ -1052,23 +1075,24 @@ check_in_device_size (){
     
     echo_if_cli -n "Checking if SD-card is larger than 16GB ...     "
 
-    if (( $(sd_size_bytes $INDEV) > 16000000000 )); then
-        MESG="'$(sd_card_name  $INDEV)' is larger than 16GB.  \
+    if (( $(get_sd_size_bytes $INDEV) > 16000000000 )); then
+        MESG="'$(get_sd_card_name  $INDEV)' is larger than 16GB.  \
          \nUse a smaller SD card if you can, it will copy faster.\
          \nA good 8gb card in a Raspberry Pi 4 takes about 8 minutes"
          
         if [ $INTERFACE = "CLI" ] ; then
             echo
             echo_red "WARNING... $MESG"
-        else
+        else  #GUI
             whiptail  --backtitle "$BACKTITLE" --title WARNING   --yes-button OK --no-button Cancel --yesno "$MESG"  $WT_MB_HEIGHT  $WT_MB_WIDTH 
             EXIT_CODE=$?
             if [ $EXIT_CODE != 0 ];  then
                 return $EXIT_CODE
             fi
         fi
+        
     else
-        echo_if_cli \'$(sd_size $INDEV)\' [OK]
+        echo_if_cli \'$(get_sd_size $INDEV)\' [OK]
     fi
 }
 
@@ -1078,11 +1102,11 @@ check_out_device_size (){
    
     echo_if_cli -n "Checking if SD-card is larger than 16GB ...     "
 
-    if (( $(sd_size_bytes $OUTDEV) > 16000000000 )); then
+    if (( $(get_sd_size_bytes $OUTDEV) > 16000000000 )); then
          if [ $INTERFACE = "CLI" ] ; then
             echo
-            echo_red WARNING... SD-card \'$(sd_card_name  $OUTDEV)\' is larger than 16GB... Are you sure it is the right device?
-            #echo "$OUTDEV size=$(sd_size $OUTDEV)"
+            echo_red WARNING... SD-card \'$(get_sd_card_name  $OUTDEV)\' is larger than 16GB... Are you sure it is the right device?
+            #echo "$OUTDEV size=$(get_sd_size $OUTDEV)"
             read -p "You must type 'OK' to continue:"  -r RESULT
             if ! [ $RESULT == "OK" ]; then
                 echo Exiting...
@@ -1090,7 +1114,7 @@ check_out_device_size (){
                 #exit
             fi
         else
-            whiptail  --backtitle "$BACKTITLE" --title WARNING --defaultno --yesno "'$(sd_card_name  $OUTDEV)' is larger than 16GB.  \n\nAre you sure it is the right device?"    $WT_MB_HEIGHT  $WT_MB_WIDTH
+            whiptail  --backtitle "$BACKTITLE" --title WARNING --defaultno --yesno "'$(get_sd_card_name  $OUTDEV)' is larger than 16GB.  \n\nAre you sure it is the right device?"    $WT_MB_HEIGHT  $WT_MB_WIDTH
             #whiptail --title WARNING --yesno "SD-card is larger than 16GB.  Are you sure it is the right device?"    $WT_HEIGHT  $WT_WIDTH
             EXIT_CODE=$?
             if [ $EXIT_CODE != 0 ];  then
@@ -1098,7 +1122,7 @@ check_out_device_size (){
             fi
         fi
     else
-        echo_if_cli \'$(sd_size $OUTDEV)\' [OK]
+        echo_if_cli \'$(get_sd_size $OUTDEV)\' [OK]
     fi
 }
 
@@ -1107,15 +1131,15 @@ check_if_imagefile_will_fit_on_device(){
     # Check if imagefile will fit on device    
     echo_if_cli -n "Checking if image-file will fit on SD-card ...     "
 
-    if (( $(image_size_bytes $INFILE) > $(sd_size_bytes $OUTDEV) )); then
+    if (( $(get_image_size_bytes $INFILE) > $(get_sd_size_bytes $OUTDEV) )); then
          if [ $INTERFACE = "CLI" ] ; then
             echo
             echo_red ERROR... Image file is larger than SD-card.
-            echo "Image size =$(image_size $INFILE)"
-            echo "Device size=$(sd_size $OUTDEV)"
+            echo "Image size =$(get_image_size $INFILE)"
+            echo "Device size=$(get_sd_size $OUTDEV)"
             return 1
         else
-          whiptail  --backtitle "$BACKTITLE" --title ERROR --msgbox  "Image file size '$(image_size $INFILE)' is larger than SD-card '$(sd_size $OUTDEV)'. Canceling... " $WT_MB_HEIGHT $WT_MB_WIDTH 
+          whiptail  --backtitle "$BACKTITLE" --title ERROR --msgbox  "Image file size '$(get_image_size $INFILE)' is larger than SD-card '$(get_sd_size $OUTDEV)'. Canceling... " $WT_MB_HEIGHT $WT_MB_WIDTH 
           return 1
         fi
     else
@@ -1139,7 +1163,7 @@ do_restore_get_input() {
         EXIT_CODE=$?
     fi
     if [ $EXIT_CODE != 0 ]; then
-        whiptail --backtitle "$BACKTITLE" --title ERROR --msgbox "Error getting INFILE " $WT_MB_HEIGHT $WT_MB_WIDTH
+        #whiptail --backtitle "$BACKTITLE" --title ERROR --msgbox "Error getting INFILE " $WT_MB_HEIGHT $WT_MB_WIDTH
         return $EXIT_CODE
     fi
     
@@ -1152,7 +1176,6 @@ do_restore_get_input() {
     fi 
 
 
-#echo break 1
     # get out device
     if [ $INTERFACE = "CLI" ] ; then
         cli_get_sddevice $OUTDEV  # this sets global variable OUTDEV
@@ -1181,12 +1204,12 @@ do_restore_get_input() {
     if [ $INTERFACE = "CLI" ] ; then
         #RESULT=$?
         echo
-        echo_white Write \'$INFILE\' to \'$(sd_card_name $OUTDEV)\'?
+        echo_white Write \'$INFILE\' to \'$(get_sd_card_name $OUTDEV)\'?
         echo_red WARNING... All existing data on \'/dev/$OUTDEV\' - will be erased!
         read  -p "You must type 'YES' to continue:" -r RESULT
         echo
     else
-        if (whiptail  --backtitle "$BACKTITLE" --title WARNING --defaultno --yesno "Write image '$INFILE' \nto SD card  '$OUTDEV'   $(sd_card_name $OUTDEV)  \n\nAll existing data on '/dev/$OUTDEV' - will be erased!  \nAre you sure you want to continue?" $WT_HEIGHT $WT_WIDTH) then
+        if (whiptail  --backtitle "$BACKTITLE" --title RESTORE-WARNING --defaultno --yesno "Write image '$INFILE' \nto SD card  '$OUTDEV'   $(get_sd_card_name $OUTDEV)  \n\nAll existing data on '/dev/$OUTDEV' - will be erased!  \nAre you sure you want to continue?" $WT_HEIGHT $WT_WIDTH) then
             #echo "User selected Yes, exit status was $?."
             RESULT="YES"
         else
@@ -1203,27 +1226,31 @@ do_restore_get_input() {
     if  [ $RESULT = "YES" ]; then
     
          if [ $INTERFACE = "GUI" ] ; then
-            whiptail  --backtitle "$BACKTITLE" --yes-button OK --no-button Cancel --yesno "Switching to terminal screen to watch the work ... "   $WT_MB_HEIGHT $WT_MB_WIDTH
+            whiptail  --backtitle "$BACKTITLE" --title RESTORE --yes-button OK --no-button Cancel --yesno "Switching to terminal screen to watch the work ... "   $WT_MB_HEIGHT $WT_MB_WIDTH
             if [ $? != 0 ]; then return ;fi
         fi
               
               
         # do the restore!!
-        do_restore $INFILE $OUTDEV      
+        do_restore $INFILE $OUTDEV  
+        EXIT_CODE=$?
+        if [ $EXIT_CODE != 0 ] ; then
+            return $EXIT_CODE
+        fi    
        
  
         if [ $INTERFACE = "CLI" ]; then
-            echo_white Done writing \'$INFILE\' to \'$(sd_card_name $OUTDEV)\'
-            echo_white $(image_size $INFILE) written in $(elapsed_time $TIME1 $TIME2).
-            echo_white You can remove \'$(sd_card_name $OUTDEV)\' now.
+            echo_white Done writing \'$INFILE\' to \'$(get_sd_card_name $OUTDEV)\'
+            echo_white $(get_image_size $INFILE) written in $(get_elapsed_time $TIME1 $TIME2).
+            echo_white You can remove \'$(get_sd_card_name $OUTDEV)\' now.
         else
             whiptail  --backtitle "$BACKTITLE" --title DONE --msgbox "\
 Done writing '$INFILE' 
-to '$(sd_card_name $OUTDEV)'
+to '$(get_sd_card_name $OUTDEV)'
 
-in $(elapsed_time $TIME1 $TIME2)
+in $(get_elapsed_time $TIME1 $TIME2)
 
-You can remove '$(sd_card_name $OUTDEV)' now. \
+You can remove '$(get_sd_card_name $OUTDEV)' now. \
 " $WT_MB_HEIGHT $WT_WIDTH
         fi
         
@@ -1260,10 +1287,10 @@ do_restore(){
     date
     TIME1=$(date +%s)
 
-    local INFILEEXT=$(file_ext $INFILE)
+    local INFILEEXT=$(get_file_ext $INFILE)
     
     echo        
-    echo_white "Writing $(image_size $INFILE) to SD-card $OUTFILE ... "    
+    echo_white "Writing $(get_image_size $INFILE) to SD-card $OUTFILE ... "    
     
     case $INFILEEXT in
         img)
@@ -1295,7 +1322,7 @@ do_restore(){
     
     if [ $INTERFACE = "GUI" ]; then
         echo
-        echo_white "Restore done. Total time $(elapsed_time $TIME1 $TIME2). Press any key to continue..."
+        echo_white "Restore done. Total time $(get_elapsed_time $TIME1 $TIME2). Press any key to continue..."
         read -n1
     fi
 }
@@ -1304,10 +1331,10 @@ do_restore(){
 list_info() {
         echo
         echo "CURRENT SYSTEM:"
-        echo "Boot disk = /dev/$(boot_disk)"
-        echo "FreeSpace = $(freespace)"
-        echo "TrashSize = $(folder_size /home/pi/.local/share/Trash)"
-        echo "RootTrash = $(folder_size /root/.local/share/Trash)"
+        echo "Boot disk = /dev/$(get_boot_disk)"
+        echo "FreeSpace = $(get_freespace)"
+        echo "TrashSize = $(get_folder_size /home/pi/.local/share/Trash)"
+        echo "RootTrash = $(get_folder_size /root/.local/share/Trash)"
         
         echo ""
         echo "SD-CARD DEVICES (excluding boot device):"
@@ -1322,7 +1349,7 @@ list_info() {
 
 
 
-update(){
+do_update(){
     rm $SCRIPTNAME.tmp
     wget https://raw.githubusercontent.com/RichardMidnight/sd/main/$SCRIPTNAME -O $SCRIPTNAME.tmp
     EXIT_CODE=$?
@@ -1478,19 +1505,19 @@ gui_menu(){
             ;;
             
              HELP)
-                INFO=$(help)
+                INFO=$(do_help)
                 result="$INFO"
                 whiptail --backtitle "$BACKTITLE"  --title "HELP" --scrolltext --msgbox "$result" $WT_HEIGHT_TALL  $WT_WIDTH
             ;;
             
             ABOUT)
-                INFO=$(about)
+                INFO=$(do_about)
                  result="$INFO"
                  whiptail --backtitle "$BACKTITLE"  --title "ABOUT" --scrolltext --msgbox "$result" $WT_HEIGHT_TALL  $WT_WIDTH
             ;;   
             
             UPDATE)
-                update
+                do_update
             ;;
             
             *)
@@ -1543,7 +1570,7 @@ case $1 in
     ;;
     
     help|-h|--help)
-        cli_help
+        do_help
     ;;
     
     *)

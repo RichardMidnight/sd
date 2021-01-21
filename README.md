@@ -4,9 +4,9 @@
  
  - Easily restore images to an SD card.
 
- - Read an image-file from an sd card.
+ - Restore an image-file from an sd card.
 
- - Write an image-file to an sd card.
+ - Backup an image-file to an sd card.
 
  - Works entirely on a Raspberry Pi in terminal.  No Windows or Mac needed. 
  

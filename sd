@@ -10,7 +10,7 @@ COPYRIGHT="By Richard Reed 2018 - 2021"
 #echo empty the /root/.local/share/Trash folders to free up room
 
 SCRIPTNAME="${0##*/}"
-SCRIPTVER="1.7.3"
+SCRIPTVER="1.7.5"
 PRODUCTNAME="sd"
 PRODUCTCOMMENT="Backup-to or Restore-from an Image File"
 CURRENT_DIR=$(pwd)
@@ -203,7 +203,6 @@ get_sd_size_bytes() {
     local BYTES
     
     BYTES=$(lsblk "$INDEV" -d -n -b -o size )
-#echo $BYTES    
     
     EXIT_CODE=$?
     if [ $EXIT_CODE != 0 ]; then
@@ -236,7 +235,6 @@ get_ver_to_int() {
 
 check_for_supported_file_extention(){
     #returns 0 if good, 1 if bad
-       
     OUTFILE_EXT=$(get_file_ext $OUTFILE)
 
     case $OUTFILE_EXT in
@@ -283,7 +281,6 @@ check_for_img_file(){
     if [ ! -z $(get_file_ext $IMG) ] && [ $(get_file_ext $IMG) = "img" ]; then
         echo $IMG [OK]
         return 0
-       # fi
     else
         echo "ERROR: No image found in '$INFILE'"
         return 1
@@ -294,16 +291,12 @@ check_for_img_file(){
 check_in_device_size (){
     local INDEV=$1
     
-#echo $(get_sd_size_bytes $INDEV)
-# exit
-    
    if [ $(get_sd_size_bytes $INDEV) -gt 16000000000 ]; then
         MESG=" '$INDEV' is larger than 16GB.  \
          \nUse a smaller SD card if you can, it will copy faster.\
          \nA good 8gb card in a Raspberry Pi 4 takes about 8 minutes"
-        echo_red "WARNING... $MESG"
-#exit        
-        
+         echo
+        echo_red "WARNING... $MESG"   
     fi
 }
 
@@ -311,17 +304,9 @@ check_in_device_size (){
 
 check_out_device_size (){
     # Check if SD-card is large... maybe the wrong device
-    #if (( $(get_sd_size_bytes $OUTDEV) > 16000000000 )); then
-    
-
-    
     if [ $(get_sd_size_bytes $OUTDEV) -gt 16000000000 ]; then
         echo
-        #echo_red WARNING... SD-card \'$(get_sd_card_name  $OUTDEV)\' is larger than 16GB... Are you sure it is the right device?
-
-     echo_red "WARNING... SD-card '$OUTDEV' is larger than 16GB... Are you sure it is the right device?"
-     
-        #echo "$OUTDEV size=$(get_sd_size $OUTDEV)"
+        echo_red "WARNING... SD-card '$OUTDEV' is larger than 16GB... Are you sure it is the right device?"
         read -p "You must type 'OK' to continue:"  -r RESULT
         if [ $RESULT != "OK" ]; then
             echo Exiting...
@@ -404,9 +389,10 @@ get_tools() {
                 sudo apt install pigz -y
             fi
             
-            echo_white DONE... 
+            echo_white DONE installing tools. 
             
         else
+            echo
             echo_red   WARNING.  Not all the needed tools are installed.
         fi
     fi
@@ -475,6 +461,7 @@ do_backup(){
     
     # check INDEV
     if [ -z $INDEV ] ; then
+        echo
         echo_red "ERROR: IN-DEV '$INDEV' can't be blank"
         return 1
     fi 
@@ -486,9 +473,19 @@ do_backup(){
     fi
     
     if  [ ! -e $INDEV ]  ; then
+        echo
         echo_red "ERROR: IN-DEV '$INDEV' not found"
         return 1
     fi 
+    
+    
+    # warning if INDEV is root disk
+    if [ $INDEV = /dev/$(get_root_disk) ]; then
+        echo
+        echo_red "WARNING: SD-card is root disk '/dev/$(get_root_disk)'."
+        #return 1
+    fi
+    
     
     # Warning if SD-card is bigger than 16GB
     check_in_device_size $INDEV
@@ -500,6 +497,7 @@ do_backup(){
     
     # Stop if SD-card is bigger than freespace
     if [ $(get_sd_size_bytes $INDEV) -gt $(get_freespace_bytes) ]; then
+        echo
         echo_red   "ERROR: Not enough free space on '$PWD'"
         return 1
     fi
@@ -507,6 +505,7 @@ do_backup(){
     
     # check OUTFILE
     if [ -z $OUTFILE ] ; then
+        echo
         echo_red "ERROR: OUT-FILE '$OUTFILE' can't be blank"
         return 2
     fi  
@@ -521,11 +520,13 @@ do_backup(){
     check_for_supported_file_extention
     EXIT_CODE=$?
     if [ $EXIT_CODE != 0 ]; then
+        echo
         echo_red "ERROR: unsupported file extension '$(get_file_ext $OUTFILE)'"
         return $EXIT_CODE 
     fi
 
     if  [ -f $OUTFILE ]  ; then
+        echo
         echo_red "ERROR: OUT-FILE '$OUTFILE' exists"
         return 2
     fi 
@@ -535,11 +536,13 @@ do_backup(){
     
     # Final check before running
     if [ -z $INDEV ] || [ ! -e $INDEV ] ; then
+        echo
         echo_red "ERROR: IN-DEV '$INDEV' .  Can't be blank.  Must exist."
         return 1
     fi 
     
     if [ -z $OUTFILE ] || [ -f $OUTFILE ] ; then
+        echo
         echo_red "ERROR: OUT-FILE '$OUTFILE' . Cant be blank. Can't exist. "
         return 2
     fi  
@@ -597,6 +600,7 @@ do_backup(){
         
         
         *)
+            echo
             echo_red ERROR... unsupported file extension \'$(get_file_ext $OUTFILE)\'.
             return 1
         ;;
@@ -610,6 +614,7 @@ do_backup(){
     
     # check if $OUTFILE was created
     if [ ! -f $OUTFILE ]; then
+        echo
         echo_red "ERROR: creating '$OUTFILE'"
         return 1
     fi
@@ -631,11 +636,13 @@ do_restore(){
     
     #check INFILE
     if [ -z $INFILE ] ; then
+        echo
         echo_red "ERROR: IN-FILE '$INFILE' cannot be blank"
         return 1
     fi 
     
     if  [ ! -f $INFILE ]  ; then
+        echo
         echo_red "ERROR: can't find IN-FILE '$INFILE' "
         return 1
     fi 
@@ -650,6 +657,7 @@ do_restore(){
     
     # check OUTDEV
     if [ -z $OUTDEV ]; then
+        echo
         echo_red "ERROR: OUT-DEV '$OUTDEV' cannot be blank"
         return 1
     fi
@@ -661,37 +669,42 @@ do_restore(){
     fi
     
     if  [ ! -e $OUTDEV ]  ; then
+        echo
         echo_red "ERROR: Can't find OUT-DEV '$OUTDEV' "
         return 2
     fi 
     
+    # Don't allow restore to root disk.
+    if [ $OUTDEV = /dev/$(get_root_disk) ]; then
+        echo "Can't restore to root disk '/dev/$(get_root_disk)'."
+        return 1
+    fi
+    
+    # Warning if device is big
     check_out_device_size $OUTDEV
     EXIT_CODE=$?
     if [ $EXIT_CODE != 0 ]; then
         return $EXIT_CODE
     fi
     
+    # exit if image won't fit on device
     check_if_imagefile_will_fit_on_device $INFILE $OUTFILE
     EXIT_CODE=$?
     if [ $EXIT_CODE != 0 ]; then
         return $EXIT_CODE
     fi
     
-    # Don't allow restore to root drive.
-    if [ $OUTDEV = /dev/$(get_root_disk) ]; then
-        echo "can't restore to root drive."
-        return 1
-    fi
-
 
 
     # final check before running
     if [ -z $INFILE ] || [ ! -e $INFILE ]; then
+        echo
         echo_red "ERROR: IN-FILE '$INFILE' cannot be blank. must exist."
         return 1
     fi 
     
     if [ -z $OUTDEV ] || [ ! -e $OUTDEV ]; then
+        echo
         echo_red "ERROR: OUT-DEV '$OUTDEV' cannot be blank.  must exist."
         return 1
     fi
@@ -719,7 +732,7 @@ do_restore(){
     local INFILEEXT=$(get_file_ext $INFILE)
     
     echo        
-    echo_white "Writing $INFILE to $OUTFILE ... "    
+    echo_white "Writing $INFILE to $OUTDEV ... "    
     
     case $INFILEEXT in
         img)
@@ -743,6 +756,7 @@ do_restore(){
         ;;
 
         *)
+            echo
             echo_red ERROR.  Unsupported file extension. 
             return  1 
         ;;
@@ -752,6 +766,7 @@ do_restore(){
     echo
     
     if [ $EXIT_CODE != 0 ]; then
+        echo
         echo_red  "ERROR. $EXIT_CODE"
         return $EXIT_CODE
     else

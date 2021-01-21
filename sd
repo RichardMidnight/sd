@@ -10,7 +10,7 @@ COPYRIGHT="By Richard Reed 2018 - 2021"
 #echo empty the /root/.local/share/Trash folders to free up room
 
 SCRIPTNAME="${0##*/}"
-SCRIPTVER="1.7.0"
+SCRIPTVER="1.7.1"
 PRODUCTNAME="sd"
 PRODUCTCOMMENT="Backup-to or Restore-from an Image File"
 CURRENT_DIR=$(pwd)
@@ -142,24 +142,24 @@ get_image_size_bytes() {
 }    
 
 
-get_boot_disk() {
-    local BOOT_PARTITION
-    local BOOT_DRIVE
+get_root_disk() {
+    local ROOT_PARTITION
+    local ROOT_DRIVE
     
-    BOOT_PARTITION=$(lsblk -l | grep "/$" | cut -d' ' -f1 2> /dev/null) 
+    ROOT_PARTITION=$(lsblk -l | grep "/$" | cut -d' ' -f1 2> /dev/null) 
     
-    if [ -z $BOOT_PARTITION ]; then
-        return 1  # can't find boot partition or boot drive
+    if [ -z $ROOT_PARTITION ]; then
+        return 1  # can't find root partition or root drive
     fi
     
-    if [[ $BOOT_PARTITION =~ "p" ]]; then
-        BOOT_DRIVE=$(echo $BOOT_PARTITION | cut -d'p' -f1)
-    elif [[ $BOOT_PARTITION =~ "sd" ]]; then
-        BOOT_DRIVE=${BOOT_PARTITION:0:3}
+    if [[ $ROOT_PARTITION =~ "p" ]]; then
+        ROOT_DRIVE=$(echo $ROOT_PARTITION | cut -d'p' -f1)
+    elif [[ $ROOT_PARTITION =~ "sd" ]]; then
+        ROOT_DRIVE=${ROOT_PARTITION:0:3}
     else
-        return 2  # can't find boot disk
+        return 2  # can't find root disk
     fi    
-    echo $BOOT_DRIVE
+    echo $ROOT_DRIVE
 }
 
 
@@ -169,6 +169,18 @@ get_freespace() {
     
     echo $RET
 }    
+
+
+get_freespace_bytes() {
+    local RET
+    RET=$(df . -B1 --output=avail | grep -v Avail)
+    EXIT_CODE=$?
+    if [ $EXIT_CODE != 0 ]; then
+        return $EXIT_CODE
+    fi
+    
+    echo $RET
+}   
 
 
 get_folder_size() {
@@ -332,14 +344,14 @@ check_if_imagefile_will_fit_on_device(){
 list_info() {
         echo
         echo_white "CURRENT SYSTEM:"
-        echo "Boot disk = /dev/$(get_boot_disk)"
+        echo "Root disk = /dev/$(get_root_disk)"
         echo "FreeSpace = $(get_freespace)"
         echo "TrashSize = $(get_folder_size /home/pi/.local/share/Trash)"
         echo "RootTrash = $(get_folder_size /root/.local/share/Trash)"
         
         echo 
-        echo_white "SD-CARD DEVICES (excluding boot device):"
-        lsblk -d -n -p -o NAME,VENDOR,MODEL,SIZE /dev/sd?  2> /dev/null | grep -v $(get_boot_disk)
+        echo_white "SD-CARD DEVICES (excluding root device):"
+        lsblk -d -n -p -o NAME,VENDOR,MODEL,SIZE /dev/sd?  2> /dev/null | grep -v $(get_root_disk)
         #echo "$(list_sd_devices)"
 
         echo   
@@ -483,7 +495,11 @@ do_backup(){
         return $EXIT_CODE
     fi    
     
-  
+    # Stop if SD-card is bigger than freespace
+    if [ $(get_sd_size_bytes $INDEV) -gt $(get_freespace_bytes) ]; then
+        echo_red   "ERROR: Not enough free space on '$PWD'"
+        return 1
+    fi
     
     
     # check OUTFILE

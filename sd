@@ -10,7 +10,7 @@ COPYRIGHT="By Richard Reed 2018 - 2021"
 #echo empty the /root/.local/share/Trash folders to free up room
 
 SCRIPTNAME="${0##*/}"
-SCRIPTVER="1.7.1"
+SCRIPTVER="1.7.2"
 PRODUCTNAME="sd"
 PRODUCTCOMMENT="Backup-to or Restore-from an Image File"
 CURRENT_DIR=$(pwd)
@@ -317,7 +317,10 @@ check_out_device_size (){
     
     if [ $(get_sd_size_bytes $OUTDEV) -gt 16000000000 ]; then
         echo
-        echo_red WARNING... SD-card \'$(get_sd_card_name  $OUTDEV)\' is larger than 16GB... Are you sure it is the right device?
+        #echo_red WARNING... SD-card \'$(get_sd_card_name  $OUTDEV)\' is larger than 16GB... Are you sure it is the right device?
+
+     echo_red "WARNING... SD-card '$OUTDEV' is larger than 16GB... Are you sure it is the right device?"
+     
         #echo "$OUTDEV size=$(get_sd_size $OUTDEV)"
         read -p "You must type 'OK' to continue:"  -r RESULT
         if [ $RESULT != "OK" ]; then
@@ -672,6 +675,12 @@ do_restore(){
     EXIT_CODE=$?
     if [ $EXIT_CODE != 0 ]; then
         return $EXIT_CODE
+    fi
+    
+    # Don't allow restore to root drive.
+    if [ $OUTDEV = $(get_root_disk) ]; then
+        echo "can't restore to root drive."
+        return 1
     fi
 
 

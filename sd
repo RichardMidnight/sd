@@ -10,7 +10,7 @@ COPYRIGHT="By Richard Reed 2018 - 2021"
 #echo empty the /root/.local/share/Trash folders to free up room
 
 SCRIPTNAME="${0##*/}"
-SCRIPTVER="1.7.2"
+SCRIPTVER="1.7.3"
 PRODUCTNAME="sd"
 PRODUCTCOMMENT="Backup-to or Restore-from an Image File"
 CURRENT_DIR=$(pwd)
@@ -678,7 +678,7 @@ do_restore(){
     fi
     
     # Don't allow restore to root drive.
-    if [ $OUTDEV = $(get_root_disk) ]; then
+    if [ $OUTDEV = /dev/$(get_root_disk) ]; then
         echo "can't restore to root drive."
         return 1
     fi

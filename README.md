@@ -63,22 +63,15 @@
 # INSTALL
 
 In a terminal window, type in
-
-    wget https://raw.githubusercontent.com/RichardMidnight/sd/main/sd
-    chmod +x sd
-    sudo mv sd /usr/local/bin
-    
-    or
     
     wget https://raw.githubusercontent.com/RichardMidnight/sd/main/sd
-    chmod +x sd
-    ./sd install   
+    bash sd install   
+    
     
     beta ver 
     
     wget https://raw.githubusercontent.com/RichardMidnight/sd/main/sd-beta
-    bash sd-beta
-    Then you can select 'install' from the menu
+    bash sd-beta install
 .
 
 # EXAMPLES

@@ -10,7 +10,7 @@ COPYRIGHT="By Richard Reed 2018 - 2021"
 #echo empty the /root/.local/share/Trash folders to free up room
 
 SCRIPTNAME="${0##*/}"
-SCRIPTVER="1.7.5"
+SCRIPTVER="1.7.7"
 PRODUCTNAME="sd"
 PRODUCTCOMMENT="Backup-to or Restore-from an Image File"
 CURRENT_DIR=$(pwd)
@@ -308,7 +308,7 @@ check_out_device_size (){
         echo
         echo_red "WARNING... SD-card '$OUTDEV' is larger than 16GB... Are you sure it is the right device?"
         read -p "You must type 'OK' to continue:"  -r RESULT
-        if [ $RESULT != "OK" ]; then
+        if [ -z $RESULT ] || [ $RESULT != "OK" ]; then
             echo Exiting...
             return 1
         fi
@@ -531,6 +531,11 @@ do_backup(){
         return 2
     fi 
 
+    if  [ -f $(get_file_base $OUTFILE).img ]  ; then
+        echo
+        echo_red "ERROR: '$(get_file_base $OUTFILE).img' exists"
+        return 2
+    fi 
 
     
     
@@ -549,26 +554,26 @@ do_backup(){
 
 
     TIME1=$(date +%s)
-    echo_white Step 1 of 3 - Reading  \'$INDEV\' to \'$OUTFILE_BASE.img-tmp\' ...
+    echo_white Step 1 of 3 - Reading  \'$INDEV\' to \'$OUTFILE_BASE.img\' ...
     date
     #echo $(get_sd_size $INDEV ) to read
-    sudo dd bs=4M if=$INDEV of=$OUTFILE_BASE.img-tmp status=progress conv=fsync 
+    sudo dd bs=4M if=$INDEV of=$OUTFILE_BASE.img status=progress conv=fsync 
     sleep 5s
     echo Done reading SD card
-    echo_white $(ls -s -h $OUTFILE_BASE.img-tmp)
+    echo_white $(ls -s -h $OUTFILE_BASE.img)
     TIME2=$(date +%s)  
     echo_white Step 1 took $(get_elapsed_time $TIME1 $TIME2)
     echo
    
     echo_white Step 2 of 3 - Shrinking filesystem with PiShrink ...
-    sudo pishrink.sh $OUTFILE_BASE.img-tmp
+    sudo pishrink.sh $OUTFILE_BASE.img
     echo Done shrinking filesystem
-    echo_white $(ls -s -h $OUTFILE_BASE.img-tmp)
+    echo_white $(ls -s -h $OUTFILE_BASE.img)
     TIME3=$(date +%s)
     echo_white Step 2 took $(get_elapsed_time $TIME2 $TIME3)
     
     echo
-    echo_white Step 3 of 3 - Compressing $OUTFILE_BASE.img-tmp to $OUTFILE ...
+    echo_white Step 3 of 3 - Compressing $OUTFILE_BASE.img to $OUTFILE ...
     date
     #echo Compression level set to $COMPRESSION out of -9
     echo $SCRIPTNAME compression level set to $(echo $COMPRESSION | sed 's/-/ /g') of 9
@@ -576,28 +581,26 @@ do_backup(){
     case $(get_file_ext $OUTFILE) in
         img)
             echo not compressing .img file ...
-            mv $OUTFILE_BASE.img-tmp $OUTFILE
         ;;
         
         zip)
-            local FILESIZE_M=$(( $(get_file_size_kbytes $OUTFILE_BASE.img-tmp) / 1024))
+            local FILESIZE_M=$(( $(get_file_size_kbytes $OUTFILE_BASE.img) / 1024))
             local DOTSIZE=$(( $FILESIZE_M / 50 ))
             echo Dot size=$DOTSIZE MB
-            echo -n "                      $(get_file_base $OUTFILE).img-tmp"
+            echo -n "                      $(get_file_base $OUTFILE).img"
             echo ".........20........40........60........80........100%"
-            zip -dbds $DOTSIZE -m -$COMPRESSION $OUTFILE $OUTFILE_BASE.img-tmp
+            zip -dbds $DOTSIZE -m -$COMPRESSION $OUTFILE $OUTFILE_BASE.img
         ;;
         
         xz)
-            xz -z -v -T0 -$COMPRESSION $OUTFILE_BASE.img-tmp
-            mv $OUTFILE_BASE.img-tmp.xz $OUTFILE
+            xz -z -v -T0 -$COMPRESSION $OUTFILE_BASE.img
+            mv $OUTFILE_BASE.img.xz $OUTFILE
         ;;
         
         gz)
-            pigz -v -$COMPRESSION $OUTFILE_BASE.img-tmp
-            mv $OUTFILE_BASE.img-tmp.gz $OUTFILE
+            pigz -v -$COMPRESSION $OUTFILE_BASE.img
+            mv $OUTFILE_BASE.img.gz $OUTFILE
         ;;
-        
         
         *)
             echo
@@ -606,7 +609,7 @@ do_backup(){
         ;;
     esac
     
-    echo Done compressing $OUTFILE_BASE.img-tmp to $OUTFILE
+    echo Done compressing $OUTFILE_BASE.img to $OUTFILE
     echo_white $(ls -s -h $OUTFILE)
     TIME4=$(date +%s)
     echo_white  Step 3 took $(get_elapsed_time $TIME3 $TIME4)
